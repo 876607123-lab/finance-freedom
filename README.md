@@ -1,1 +1,44 @@
-IyDmiJHnmoTotKLliqHoh6rnlLEgwrcgQW5kcm9pZCBBUEsKCuWNleaWh+S7tiBIVE1MIEFwcO+8iOi0ouWKoeiHqueUseiuoeeul+WZqO+8iemAmui/hyBDYXBhY2l0b3Ig5bCB6KOF5Li6IEFuZHJvaWQg5a6J6KOF5YyF44CCCgojIyDoh6rliqjmnoTlu7oKCuavj+asoeaOqOmAgeS7o+eggeWIsCBgbWFpbmAg5YiG5pSv77yMR2l0SHViIEFjdGlvbnMg5Lya6Ieq5Yqo77yaCgoxLiDlronoo4UgTm9kZSAyMCArIEpESyAxNwoyLiBgbnBtIGluc3RhbGxgIOWuieijhSBDYXBhY2l0b3IKMy4gYG5weCBjYXAgYWRkIGFuZHJvaWQgJiYgbnB4IGNhcCBzeW5jIGFuZHJvaWRgIOeUn+aIkOWuieWNk+W3peeoiwo0LiBgLi9ncmFkbGV3IGFzc2VtYmxlRGVidWdgIOe8luivkSBEZWJ1ZyBBUEsKNS4g5Zyo6L+Q6KGM6aG16Z2i5bqV6YOo55qEICoqQXJ0aWZhY3RzKiog5Lit5LiK5LygIGBhcHAtZGVidWctYXBrYAoK5omL5Yqo6Kem5Y+R77ya5LuT5bqT6aG26YOoICoqQWN0aW9ucyoqIOKGkiAqKkJ1aWxkIEFQSyoqIOKGkiAqKlJ1biB3b3JrZmxvdyoq44CCCgojIyDkuIvovb3lronoo4UKCjEuIOaJk+W8gOacgOaWsOS4gOasoeaIkOWKn+i/kOihjOeahCBCdWlsZCBBUEsKMi4g6aG16Z2i5bqV6YOoIEFydGlmYWN0cyDkuIvovb0gYGFwcC1kZWJ1Zy1hcGtgCjMuIOino+WOi+W+l+WIsCBgYXBwLWRlYnVnLmFwa2DvvIzlj5HpgIHliLDlronljZPmiYvmnLrlronoo4UKNC4g5aaC6KKr5oum5oiq77yM5YWB6K6444CM5pyq55+l5p2l5rqQ5bqU55So44CNCgojIyDkv67mlLkgQXBwCgrnm7TmjqXmm7/mjaIgYHd3dy9pbmRleC5odG1sYO+8jOaOqOmAgeWQjiBBY3Rpb25zIOiHquWKqOWHuuaWsCBBUEvjgIIKCiMjIOW3peeoi+e7k+aehAoKYGBgCnd3dy9pbmRleC5odG1sICAgICAgICAgICAgICAgICAjIOWNleaWh+S7tiBBcHDvvIjpobXpnaLjgIHmoLflvI/jgIHpgLvovpHlhajpg6jlnKjmraTvvIkKcGFja2FnZS5qc29uICAgICAgICAgICAgICAgICAgICMgQ2FwYWNpdG9yIOS+nei1lgpjYXBhY2l0b3IuY29uZmlnLnRzICAgICAgICAgICAgIyBBcHAg6YWN572u77yI5YyF5ZCN44CB5bqU55So5ZCN77yJCi5naXRodWIvd29ya2Zsb3dzL2J1aWxkLWFway55bWwjIOiHquWKqOaehOW7uua1geawtOe6vwpgYGAKCiMjIOS6keerr+WQjOatpeivtOaYjgoKQXBwIOWGheOAjOS6keerr+WQjOatpeOAjemhteS9v+eUqCBHaXRlZSDnoIHkupHnp4HmnInku5PlupPlgZrlpIfku73vvJoKCjEuIGdpdGVlLmNvbSDmlrDlu7rnp4HmnInku5PlupPvvIjlpoIgYGZmLWJhY2t1cGDvvIkKMi4g44CM6K6+572uIOKGkiDnp4Hkurrku6TniYzjgI3nlJ/miJDku6TniYzvvIzli77pgIkgYHByb2plY3RzYCDmnYPpmZAKMy4g5ZyoIEFwcCDkupHnq6/lkIzmraXpobXloavlhaXku6TniYwgLyDnlKjmiLflkI0gLyDku5PlupPlkI3vvIzlvIDlkK/oh6rliqjkuIrkvKAKNC4g5o2i5omL5py65ZCO5aGr5ZCM5qC35L+h5oGv77yM54K544CM5LuO5LqR56uv5LiL6L2944CN5a6M5pW05oGi5aSNCg==
+# 我的财务自由 · Android APK
+
+单文件 HTML App（财务自由计算器）通过 Capacitor 封装为 Android 安装包。
+
+## 自动构建
+
+每次推送代码到 `main` 分支，GitHub Actions 会自动：
+
+1. 安装 Node 20 + JDK 17
+2. `npm install` 安装 Capacitor
+3. `npx cap add android && npx cap sync android` 生成安卓工程
+4. `./gradlew assembleDebug` 编译 Debug APK
+5. 在运行页面底部的 **Artifacts** 中上传 `app-debug-apk`
+
+手动触发：仓库顶部 **Actions** → **Build APK** → **Run workflow**。
+
+## 下载安装
+
+1. 打开最新一次成功运行的 Build APK
+2. 页面底部 Artifacts 下载 `app-debug-apk`
+3. 解压得到 `app-debug.apk`，发送到安卓手机安装
+4. 如被拦截，允许「未知来源应用」
+
+## 修改 App
+
+直接替换 `www/index.html`，推送后 Actions 自动出新 APK。
+
+## 工程结构
+
+```
+www/index.html                 # 单文件 App（页面、样式、逻辑全部在此）
+package.json                   # Capacitor 依赖
+capacitor.config.ts            # App 配置（包名、应用名）
+.github/workflows/build-apk.yml# 自动构建流水线
+```
+
+## 云端同步说明
+
+App 内「云端同步」页使用 Gitee 码云私有仓库做备份：
+
+1. gitee.com 新建私有仓库（如 `ff-backup`）
+2. 「设置 → 私人令牌」生成令牌，勾选 `projects` 权限
+3. 在 App 云端同步页填入令牌 / 用户名 / 仓库名，开启自动上传
+4. 换手机后填同样信息，点「从云端下载」完整恢复
