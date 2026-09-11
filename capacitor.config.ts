@@ -1,1 +1,12 @@
-aW1wb3J0IHR5cGUgeyBDYXBhY2l0b3JDb25maWcgfSBmcm9tICdAY2FwYWNpdG9yL2NsaSc7Cgpjb25zdCBjb25maWc6IENhcGFjaXRvckNvbmZpZyA9IHsKICBhcHBJZDogJ2NvbS5maW5hbmNlZnJlZWRvbS5hcHAnLAogIGFwcE5hbWU6ICfmiJHnmoTotKLliqHoh6rnlLEnLAogIHdlYkRpcjogJ3d3dycsCiAgYW5kcm9pZDogewogICAgYWxsb3dNaXhlZENvbnRlbnQ6IGZhbHNlCiAgfQp9OwoKZXhwb3J0IGRlZmF1bHQgY29uZmlnOwo=
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'com.financefreedom.app',
+  appName: '我的财务自由',
+  webDir: 'www',
+  android: {
+    allowMixedContent: false
+  }
+};
+
+export default config;
