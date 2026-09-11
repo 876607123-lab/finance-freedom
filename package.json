@@ -1,1 +1,16 @@
-ewogICJuYW1lIjogImZpbmFuY2UtZnJlZWRvbSIsCiAgInZlcnNpb24iOiAiMS4wLjAiLAogICJkZXNjcmlwdGlvbiI6ICLmiJHnmoTotKLliqHoh6rnlLEgLSDljZXmlofku7YgSFRNTCBBcHAg5omT5YyF5Li6IEFuZHJvaWQgQVBLIiwKICAicHJpdmF0ZSI6IHRydWUsCiAgInNjcmlwdHMiOiB7CiAgICAic3luYyI6ICJjYXAgc3luYyIKICB9LAogICJkZXBlbmRlbmNpZXMiOiB7CiAgICAiQGNhcGFjaXRvci9hbmRyb2lkIjogIl42LjIuMCIsCiAgICAiQGNhcGFjaXRvci9jb3JlIjogIl42LjIuMCIKICB9LAogICJkZXZEZXBlbmRlbmNpZXMiOiB7CiAgICAiQGNhcGFjaXRvci9jbGkiOiAiXjYuMi4wIgogIH0KfQo=
+{
+  "name": "finance-freedom",
+  "version": "1.0.0",
+  "description": "我的财务自由 - 单文件 HTML App 打包为 Android APK",
+  "private": true,
+  "scripts": {
+    "sync": "cap sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  }
+}
