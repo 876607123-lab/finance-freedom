@@ -1,1 +1,40 @@
-bmFtZTogQnVpbGQgQVBLCgpvbjoKICBwdXNoOgogICAgYnJhbmNoZXM6IFttYWluXQogIHdvcmtmbG93X2Rpc3BhdGNoOgoKam9iczoKICBidWlsZDoKICAgIHJ1bnMtb246IHVidW50dS1sYXRlc3QKICAgIHN0ZXBzOgogICAgICAtIHVzZXM6IGFjdGlvbnMvY2hlY2tvdXRAdjQKCiAgICAgIC0gdXNlczogYWN0aW9ucy9zZXR1cC1ub2RlQHY0CiAgICAgICAgd2l0aDoKICAgICAgICAgIG5vZGUtdmVyc2lvbjogMjAKCiAgICAgIC0gdXNlczogYWN0aW9ucy9zZXR1cC1qYXZhQHY0CiAgICAgICAgd2l0aDoKICAgICAgICAgIGRpc3RyaWJ1dGlvbjogdGVtdXJpbgogICAgICAgICAgamF2YS12ZXJzaW9uOiAxNwoKICAgICAgLSBuYW1lOiBJbnN0YWxsIGRlcGVuZGVuY2llcwogICAgICAgIHJ1bjogbnBtIGluc3RhbGwKCiAgICAgIC0gbmFtZTogQWRkIEFuZHJvaWQgcGxhdGZvcm0KICAgICAgICBydW46IG5weCBjYXAgYWRkIGFuZHJvaWQKCiAgICAgIC0gbmFtZTogU3luYyB3ZWIgYXNzZXRzCiAgICAgICAgcnVuOiBucHggY2FwIHN5bmMgYW5kcm9pZAoKICAgICAgLSBuYW1lOiBCdWlsZCBkZWJ1ZyBBUEsKICAgICAgICB3b3JraW5nLWRpcmVjdG9yeTogYW5kcm9pZAogICAgICAgIHJ1bjogLi9ncmFkbGV3IGFzc2VtYmxlRGVidWcKCiAgICAgIC0gbmFtZTogVXBsb2FkIEFQSyBhcnRpZmFjdAogICAgICAgIHVzZXM6IGFjdGlvbnMvdXBsb2FkLWFydGlmYWN0QHY0CiAgICAgICAgd2l0aDoKICAgICAgICAgIG5hbWU6IGFwcC1kZWJ1Zy1hcGsKICAgICAgICAgIHJ1bjogbnBtIGluc3RhbGwKCiAgICAgIC0gbmFtZTogQWRkIEFuZHJvaWQgcGxhdGZvcm0KICAgICAgICBydW46IG5weCBjYXAgYWRkIGFuZHJvaWQKCiAgICAgIC0gbmFtZTogU3luYyB3ZWIgYXNzZXRzCiAgICAgICAgcnVuOiBucHggY2FwIHN5bmMgYW5kcm9pZAoKICAgICAgLSBuYW1lOiBCdWlsZCBkZWJ1ZyBBUEsKICAgICAgICAgcnVuOiBucHggY2FwIHN5bmMgYW5kcm9pZAogICAgICAgIHVzZXM6IGFjdGlvbnMvdXBsb2FkLWFydGlmYWN0QHY0CiAgICAgICAgd2l0aDoKICAgICAgICAgIG5hbWU6IGFwcC1kZWJ1Zy1hcGsKICAgICAgICAgIHBhdGg6IGFuZHJvaWQvYXBwL2J1aWxkL291dHB1dHMvYXBrL2RlYnVnL2FwcC1kZWJ1Zy5hcGsK
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Sync web assets
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
