@@ -1,1 +1,1 @@
-中文测试：我的财务自由 v1.1.0 密码锁/月度储蓄记录/趋势曲线/分享快照/检查更新
+test: ${{ secrets.ANDROID_KEYSTORE_B64 }} and ${{ github.event.inputs.x }}
