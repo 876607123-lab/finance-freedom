@@ -1,9 +1,17 @@
-name: Build APK
+name: Build and Release APK
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Override release version (leave empty to use package.json version)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -20,6 +28,17 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Resolve version
+        id: ver
+        run: |
+          V=$(node -p "require('./package.json').version")
+          if [ -n "${{ github.event.inputs.release_version }}" ]; then
+            V="${{ github.event.inputs.release_version }}"
+          fi
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $V"
+
       - name: Install dependencies
         run: npm install
 
@@ -29,12 +48,47 @@ jobs:
       - name: Sync web assets
         run: npx cap sync android
 
-      - name: Build debug APK
+      - name: Build APKs
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug assembleRelease
 
-      - name: Upload APK artifact
+      - name: Decode signing keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > android/finance-freedom.p12
+          ls -l android/finance-freedom.p12
+
+      - name: Sign release APK
+        working-directory: android
+        run: |
+          APKTOOL=$(ls "$ANDROID_HOME/build-tools/"*/apksigner | sort -V | tail -1)
+          echo "Using apksigner: $APKTOOL"
+          "$APKTOOL" sign \
+            --ks finance-freedom.p12 \
+            --ks-type PKCS12 \
+            --ks-key-alias finance_freedom \
+            --ks-pass pass:"${{ secrets.KEYSTORE_PASSWORD }}" \
+            --key-pass pass:"${{ secrets.KEYSTORE_PASSWORD }}" \
+            --out app-release-signed.apk \
+            app/build/outputs/apk/release/app-release-unsigned.apk
+          "$APKTOOL" verify --print-certs app-release-signed.apk
+
+      - name: Upload debug APK artifact
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: 我的财务自由 v${{ steps.ver.outputs.version }}
+          body: |
+            我的财务自由 App 自动构建发布。
+
+            - 安装包（已签名）：`finance-freedom-v${{ steps.ver.outputs.version }}.apk`
+            - 手机上覆盖安装即可保留数据更新。
+          files: |
+            android/app-release-signed.apk#finance-freedom-v${{ steps.ver.outputs.version }}.apk
+          make_latest: true
