@@ -2344,19 +2344,22 @@ function clearAll() {
     showToast('已清空');
 }
 
-// ====== 导出数据 ======
-function exportData() {
-    const dataStr = JSON.stringify(state, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
+// ====== 导出数据（浏览器下载，文件进系统 Download 目录，卸载 App 不丢失） ======
+function exportJsonFile(data, filename = 'finance-backup.json') {
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `财务自由备份_${new Date().toISOString().slice(0,10)}.json`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast('已导出备份文件');
+}
+function exportData() {
+    exportJsonFile(state, `财务自由备份_${new Date().toISOString().slice(0,10)}.json`);
+    showToast('已导出备份文件，请在系统下载目录查看');
 }
 
 // ====== 导入数据 ======
@@ -2755,6 +2758,7 @@ function selYear(y) { yrSelected = y; renderYearReview(); }
 
 // ====== 分享快照（图片 / PDF） ======
 let lastSnapDataUrl = null;
+let lastSnapCanvas = null;
 function buildSnapCard() {
     const pv = parseFloat(document.getElementById('pv').value) || 0;
     const cash = Math.max(0, state.cash || 0);
@@ -2818,6 +2822,7 @@ async function exportSnapshot(kind) {
         html2canvas(document.getElementById('snapCard'), { backgroundColor: '#0b1220', scale: 2, logging: false }).then(canvas => {
             const dataUrl = canvas.toDataURL('image/png');
             lastSnapDataUrl = dataUrl;
+            lastSnapCanvas = canvas;
             const fname = '财务自由快照_' + new Date().toISOString().slice(0, 10);
             if (kind === 'pdf') {
                 try {
@@ -2835,12 +2840,29 @@ async function exportSnapshot(kind) {
     }, 80);
 }
 function closeSnapModal() { document.getElementById('snapModal').classList.remove('active'); }
+// 图片下载：canvas 直接转 Blob，下载到系统 Download 目录，文件管理器可找到
+function downloadImage(canvasDom, fileName = 'chart.png') {
+    canvasDom.toBlob(function(blob) {
+        if (!blob) { showToast('下载失败，请长按图片保存', true); return; }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('已开始下载，请在系统下载目录查看');
+    }, 'image/png');
+}
 function downloadSnap() {
+    const fname = '财务自由快照_' + new Date().toISOString().slice(0, 10) + '.png';
+    if (lastSnapCanvas) { downloadImage(lastSnapCanvas, fname); return; }
     if (!lastSnapDataUrl) { closeSnapModal(); return; }
     try {
         const a = document.createElement('a');
         a.href = lastSnapDataUrl;
-        a.download = '财务自由快照_' + new Date().toISOString().slice(0, 10) + '.png';
+        a.download = fname;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         showToast('已开始下载');
     } catch (e) { showToast('下载失败，请长按图片保存', true); }
@@ -3054,13 +3076,14 @@ initAppWithLock();
     <button class="upd-x" onclick="document.getElementById('updBanner').classList.remove('show')">✕</button>
 </div>
 <script>
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 const RELEASES_URL = 'https://github.com/876607123-lab/finance-freedom/releases';
 const RELEASE_API = 'https://api.github.com/repos/876607123-lab/finance-freedom/releases/latest';
+var latestApkUrl = '';
 (function(){ var el=document.getElementById('appVersion'); if(el) el.textContent='v'+APP_VERSION; })();
 function cmpVer(a,b){ a=(a||'').replace(/^v/,'').split('.'); b=(b||'').replace(/^v/,'').split('.');
     for(var i=0;i<3;i++){ var x=parseInt(a[i]||'0',10)||0, y=parseInt(b[i]||'0',10)||0; if(x>y)return 1; if(x<y)return -1; } return 0; }
-function openReleasePage(){ if(window.open) window.open(RELEASES_URL,'_system'); location.href=RELEASES_URL; }
+function openReleasePage(){ var url = latestApkUrl || RELEASES_URL; if(window.open) { window.open(url,'_system'); } else { location.href=url; } }
 function showUpdateBanner(latest){ document.getElementById('updNewVer').textContent=latest;
     document.getElementById('updCurVer').textContent=APP_VERSION;
     document.getElementById('updBanner').classList.add('show'); }
@@ -3069,6 +3092,7 @@ function checkUpdate(manual){
         if(!r.ok) throw new Error('HTTP '+r.status); return r.json();
     }).then(function(data){
         var tag=(data.tag_name||'').replace(/^v/,'');
+        latestApkUrl = (data.assets && data.assets[0] && data.assets[0].browser_download_url) || '';
         if(cmpVer(tag, APP_VERSION)>0){ showUpdateBanner('v'+tag); if(window.showToast) showToast('发现新版本 v'+tag); }
         else if(manual && window.showToast) showToast('已是最新版本 v'+APP_VERSION);
     }).catch(function(e){ if(manual && window.showToast) showToast('检查更新失败，请稍后重试'); });
