@@ -25,5 +25,5 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'com.getcapacitor:capacitor-android:6.+'
+    compileOnly project(':capacitor-android')
 }
