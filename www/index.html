@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
 <title>我的财务自由</title>
+<script src="crypto-js.min.js"></script>
 <style>
 :root{
   --bg:#0a0f1c;
@@ -171,19 +172,19 @@ canvas.chart{width:100%;display:block;touch-action:none}
 /* ===== 弹窗 ===== */
 .modal-overlay{position:fixed;inset:0;background:rgba(4,8,16,.75);backdrop-filter:blur(6px);display:none;justify-content:center;align-items:center;z-index:100;padding:24px}
 .modal-overlay.active{display:flex}
-.modal{background:#101a2e;border:1px solid var(--line);border-radius:24px;padding:26px 22px;width:100%;max-width:360px}
+.modal{background:#101a2e;border:1px solid var(--line);border-radius:24px;padding:26px 22px;width:100%;max-width:360px;max-height:80vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .modal h3{font-size:16px;font-weight:600;margin-bottom:6px}
 .modal p{font-size:12px;color:var(--faint);margin-bottom:16px;line-height:1.6}
 .modal input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text);font-size:24px;font-weight:700;padding:15px;border-radius:14px;text-align:center;outline:none;margin-bottom:12px;font-variant-numeric:tabular-nums}
 .modal input:focus{border-color:var(--accent)}
 .quick-chips{display:flex;gap:8px;margin-bottom:16px}
-.quick-chips button{flex:1;background:var(--surface2);border:1px solid var(--line);color:var(--muted);font-size:12.5px;font-weight:600;padding:9px 0;border-radius:10px;cursor:pointer;transition:.15s}
+.quick-chips button{flex:1;min-width:0;background:var(--surface2);border:1px solid var(--line);color:var(--muted);font-size:12.5px;font-weight:600;padding:9px 0;border-radius:10px;cursor:pointer;transition:.15s;white-space:nowrap}
 .quick-chips button:active{background:rgba(91,140,255,.25);color:#fff}
 .quick-chips button.on{background:rgba(91,140,255,.9);color:#fff;border-color:transparent}
 #modeSell.on{background:rgba(248,113,113,.9)!important;color:#fff}
 .btn-sell{background:linear-gradient(135deg,#f87171,#dc2626);color:#fff;box-shadow:0 6px 20px rgba(248,113,113,.25)}
 .modal-btns{display:flex;gap:10px}
-.modal-btns .btn{width:auto;flex:1;margin:0;font-size:14px;padding:14px}
+.modal-btns .btn{width:auto;flex:1;margin:0;font-size:14px;padding:14px;white-space:nowrap;min-width:0}
 
 /* ===== 影响反馈弹窗 ===== */
 #impactBox{ text-align:center; }
@@ -209,9 +210,76 @@ canvas.chart{width:100%;display:block;touch-action:none}
 .upd-btn:hover{background:rgba(52,211,153,.25)}
 .upd-x{background:none;border:none;color:#6ee7b7;font-size:15px;cursor:pointer;padding:2px 8px}
 .upd-link{color:#6ee7b7;text-decoration:underline;cursor:pointer;background:none;border:none;font-size:inherit;padding:0}
+
+/* ===== 月度储蓄记录 ===== */
+.ms-row{display:flex;justify-content:space-between;align-items:center;padding:11px 2px;border-bottom:1px solid var(--line);font-size:13px}
+.ms-row:last-child{border-bottom:none}
+.ms-row .ms-ym{font-weight:600}
+.ms-row .ms-sub{font-size:11px;color:var(--faint);margin-top:2px}
+.ms-row .ms-rate{font-weight:700;font-variant-numeric:tabular-nums}
+.ms-row .ms-ops{font-size:11px;color:var(--faint);margin-left:10px;white-space:nowrap}
+.ms-row .ms-ops span{cursor:pointer;padding:4px 6px}
+.ms-row .ms-ops span:active{color:var(--text)}
+
+/* ===== 年度复盘 ===== */
+.yr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.yr-stat{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px;padding:14px 14px 12px}
+.yr-label{font-size:11px;color:var(--faint);letter-spacing:.08em;margin-bottom:6px}
+.yr-val{font-size:19px;font-weight:700}
+.yr-net{margin-top:12px;font-size:12.5px;color:var(--muted);text-align:center;line-height:1.7}
+
+/* ===== 快照渲染卡片 ===== */
+#snapCard{position:fixed;left:-9999px;top:0;width:380px;background:#0b1220;color:#e8edf6;padding:22px 20px 16px;border-radius:20px;font-family:inherit;box-sizing:border-box}
+#snapCard .sc-head{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+#snapCard .sc-logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#5b8cff,#3b6ae0);display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff}
+#snapCard .sc-name{font-size:15px;font-weight:700}
+#snapCard .sc-sub{font-size:10.5px;color:#8b95a9;margin-top:2px}
+#snapCard .sc-pct{margin-left:auto;font-size:22px;font-weight:700;color:#5b8cff;font-variant-numeric:tabular-nums}
+#snapCard .sc-hero-label{font-size:10.5px;color:#8b95a9;letter-spacing:.12em}
+#snapCard .sc-hero{font-size:38px;font-weight:700;margin:6px 0 12px;font-variant-numeric:tabular-nums}
+#snapCard .sc-track{height:8px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden}
+#snapCard .sc-fill{height:100%;background:linear-gradient(90deg,#5b8cff,#34d399);border-radius:99px}
+#snapCard .sc-meta{display:flex;justify-content:space-between;font-size:11px;color:#8b95a9;margin-top:8px}
+#snapCard .sc-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+#snapCard .sc-stat{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 12px}
+#snapCard .sc-s-label{font-size:10px;color:#8b95a9;margin-bottom:4px}
+#snapCard .sc-s-val{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+#snapCard .sc-chart-title{font-size:10.5px;color:#8b95a9;letter-spacing:.12em;margin:18px 0 8px}
+#snapCard canvas{width:336px;height:190px;display:block}
+#snapCard .sc-foot{font-size:9px;color:#3d4658;letter-spacing:.1em;text-align:center;margin-top:16px;line-height:1.7}
+
+/* ===== 小屏手机适配 ===== */
+@media (max-width:380px){
+  .btn{font-size:14px;padding:15px 10px;letter-spacing:0}
+  .btn-row .btn,.modal-btns .btn{font-size:13px;padding:13px 8px}
+  .quick-chips{gap:6px}
+  .quick-chips button{font-size:11.5px;padding:9px 2px}
+  .modal{padding:22px 16px}
+  .modal-btns{gap:8px}
+  .icon-pick button{width:40px;height:40px;font-size:17px}
+  .yr-val{font-size:16px}
+  .yr-stat{padding:12px 10px 10px}
+  .ms-row .ms-ops{margin-left:6px}
+}
 </style>
 </head>
 <body>
+
+<!-- ===== 密码锁屏（开启密码锁后优先渲染，主界面全部遮挡） ===== -->
+<div id="lockScreen" style="position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;justify-content:center;align-items:center;padding:24px">
+    <div class="modal" style="width:100%;max-width:340px">
+        <div style="text-align:center;font-size:34px;margin-bottom:10px">🔒</div>
+        <h3 id="lockTitle" style="text-align:center">请输入 App 密码</h3>
+        <p id="lockTip" style="text-align:center">数据已加密保存，输入密码解锁后进入。</p>
+        <input id="lockPwd" type="password" inputmode="decimal" autocomplete="off" placeholder="密码" style="margin-bottom:10px" onkeydown="if(event.key==='Enter')lockSubmit()">
+        <input id="lockPwd2" type="password" inputmode="decimal" autocomplete="off" placeholder="重复密码" style="margin-bottom:10px;display:none" onkeydown="if(event.key==='Enter')lockSubmit()">
+        <div class="sync-status" id="lockErr" style="color:var(--red);text-align:center"></div>
+        <div class="modal-btns" style="margin-top:16px">
+            <button class="btn btn-ghost" id="lockResetBtn" onclick="lockResetAll()">忘记密码</button>
+            <button class="btn btn-primary" id="lockConfirmBtn" onclick="lockSubmit()">解锁</button>
+        </div>
+    </div>
+</div>
 
 <!-- ===== 顶栏 ===== -->
 <div class="topbar">
@@ -274,6 +342,10 @@ canvas.chart{width:100%;display:block;touch-action:none}
 </div>
 
 <button class="btn btn-primary" onclick="openAddModal()">＋ 记录一笔交易</button>
+<div class="btn-row">
+    <button class="btn btn-ghost" onclick="exportSnapshot('png')">📸 生成分享图片</button>
+    <button class="btn btn-ghost" onclick="exportSnapshot('pdf')">📄 生成分享 PDF</button>
+</div>
 
 <!-- ===== 增长预测 ===== -->
 <div class="sec"><span class="sec-idx">01</span><span class="sec-title">增长预测</span><span class="sec-en">Forecast</span></div>
@@ -354,11 +426,66 @@ canvas.chart{width:100%;display:block;touch-action:none}
         <label>本月实际结余 · 对比基准定投</label>
         <span class="num" id="realCompare" style="font-size:12.5px;font-weight:600;text-align:right"></span>
     </div>
+    <div class="input-row" style="border-top:1px solid var(--line);padding-top:16px;margin-top:16px">
+        <label>应用密码锁 🔒</label>
+        <button class="btn btn-ghost" id="lockSetBtn" style="width:150px;margin:0;padding:10px;font-size:12.5px" onclick="openPasswordSetting()">未开启 · 设置</button>
+    </div>
+    <div class="hint">开启后每次打开 App 需输入密码，本地数据加密存储（防随手翻看）。忘记密码无法找回，只能清空数据重来，请务必牢记。</div>
+</div>
+
+<!-- ===== 月度储蓄记录 ===== -->
+<div class="sec"><span class="sec-idx">04</span><span class="sec-title">月度储蓄记录</span><span class="sec-en">Savings</span></div>
+<div class="card">
+    <div class="chart-note" style="margin-bottom:8px">每月必填 · 哪怕存 0 也记一笔，用于储蓄率均值与年度复盘</div>
+    <div id="msReminder" style="display:none;background:rgba(245,176,75,.1);border:1px solid rgba(245,176,75,.3);color:var(--amber);font-size:12px;border-radius:12px;padding:10px 12px;margin-bottom:10px;line-height:1.6">⚠️ 本月还没有储蓄记录，哪怕存 0 也请记一笔</div>
+    <div class="input-row">
+        <label>月份</label>
+        <input type="month" id="msMonth" onchange="renderMonthly()">
+    </div>
+    <div class="input-row">
+        <label>本月收入</label>
+        <input type="number" id="msIncome" inputmode="decimal" placeholder="如 30000" step="500" oninput="updateMsPreview()">
+    </div>
+    <div class="input-row">
+        <label>本月支出</label>
+        <input type="number" id="msExpense" inputmode="decimal" placeholder="如 10000" step="500" oninput="updateMsPreview()">
+    </div>
+    <div class="input-row">
+        <label>结余 · 储蓄率</label>
+        <span class="num" id="msPreview" style="font-size:13.5px;font-weight:700;color:var(--accent)">--</span>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin:10px 0 0" onclick="saveMonthly()">保存月度记录</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
+        <span class="chart-note">趋势曲线 · 按住滑动查看明细</span>
+        <div class="seg">
+            <button id="msModeSaved" class="on" onclick="setMsChartMode('saved')">结余金额</button>
+            <button id="msModeRate" onclick="setMsChartMode('rate')">储蓄率</button>
+        </div>
+    </div>
+    <canvas class="chart" id="msChart" style="height:180px;margin-top:8px"></canvas>
+    <button class="btn btn-ghost" id="msListToggle" style="width:100%;margin:10px 0 0;padding:11px;font-size:12.5px" onclick="toggleMsList()">▾ 历史月度记录（0 条）</button>
+    <div id="msListPanel" style="display:none">
+        <div id="msList" style="margin-top:6px"></div>
+    </div>
+</div>
+
+<!-- ===== 年度复盘 ===== -->
+<div class="sec"><span class="sec-idx">05</span><span class="sec-title">年度复盘</span><span class="sec-en">Review</span></div>
+<div class="card">
+    <div class="quick-chips" id="yrChips" style="margin-bottom:14px"></div>
+    <div class="yr-grid">
+        <div class="yr-stat"><div class="yr-label">总投入</div><div class="yr-val num" id="yrIn" style="color:var(--green)">¥0</div></div>
+        <div class="yr-stat"><div class="yr-label">总取出</div><div class="yr-val num" id="yrOut" style="color:var(--red)">¥0</div></div>
+        <div class="yr-stat"><div class="yr-label">股息总收入</div><div class="yr-val num" id="yrDiv" style="color:var(--amber)">¥0</div></div>
+        <div class="yr-stat"><div class="yr-label">储蓄率均值</div><div class="yr-val num" id="yrRate" style="color:var(--accent)">--</div></div>
+    </div>
+    <div class="yr-net" id="yrNet"></div>
+    <div class="hint" id="yrHint"></div>
 </div>
 
 <!-- ===== 持仓 · 实时 ===== -->
 <!-- ===== 人生大事件推演 ===== -->
-<div class="sec"><span class="sec-idx">04</span><span class="sec-title">人生大事件推演</span><span class="sec-en">Simulate</span></div>
+<div class="sec"><span class="sec-idx">06</span><span class="sec-title">人生大事件推演</span><span class="sec-en">Simulate</span></div>
 <div class="card">
     <div class="chart-note" style="margin-bottom:12px">模拟一笔大额支出对财务自由的影响（沙盒推演，不改动真实数据）</div>
     <div class="input-row">
@@ -383,7 +510,7 @@ canvas.chart{width:100%;display:block;touch-action:none}
     <div id="simResult" style="display:none"></div>
 </div>
 
-<div class="sec"><span class="sec-idx">05</span><span class="sec-title">持仓与实时估值</span><span class="sec-en">Live</span></div>
+<div class="sec"><span class="sec-idx">07</span><span class="sec-title">持仓与实时估值</span><span class="sec-en">Live</span></div>
 <div class="card">
     <div id="holdingList"></div>
     <button class="btn btn-ghost" id="toggleAddHolding" style="width:100%;margin:12px 0 0;padding:13px" onclick="toggleAddHolding()">＋ 添加持仓（股票 / 基金）▼</button>
@@ -416,7 +543,7 @@ canvas.chart{width:100%;display:block;touch-action:none}
 
 <!-- ===== 云同步 ===== -->
 <!-- ===== 年度分红管理 ===== -->
-<div class="sec"><span class="sec-idx">06</span><span class="sec-title">年度分红管理</span><span class="sec-en">Dividend</span></div>
+<div class="sec"><span class="sec-idx">08</span><span class="sec-title">年度分红管理</span><span class="sec-en">Dividend</span></div>
 <div class="card" style="padding:14px">
     <button class="btn btn-ghost" id="divToggle" style="width:100%;margin:0;padding:12px" onclick="toggleDivPanel()">年度分红管理（0 只已录入）▼</button>
     <div id="divPanel" style="display:none">
@@ -425,7 +552,7 @@ canvas.chart{width:100%;display:block;touch-action:none}
     </div>
 </div>
 
-<div class="sec"><span class="sec-idx">07</span><span class="sec-title">加仓记录</span><span class="sec-en">Log</span></div>
+<div class="sec"><span class="sec-idx">09</span><span class="sec-title">加仓记录</span><span class="sec-en">Log</span></div>
 <div class="card" style="padding:10px 14px">
     <button class="btn btn-ghost" id="histToggle" style="width:100%;margin:0;padding:12px" onclick="toggleHistory()">交易记录（0 条）▼</button>
     <div id="historyPanel" style="display:none">
@@ -434,12 +561,13 @@ canvas.chart{width:100%;display:block;touch-action:none}
 </div>
 
 <!-- ===== 备份 ===== -->
-<div class="sec"><span class="sec-idx">08</span><span class="sec-title">数据备份</span><span class="sec-en">Backup</span></div>
+<div class="sec"><span class="sec-idx">10</span><span class="sec-title">数据备份</span><span class="sec-en">Backup</span></div>
 <div class="btn-row">
     <button class="btn btn-ghost" onclick="exportData()">导出 JSON</button>
     <button class="btn btn-ghost" onclick="importData()">导入 JSON</button>
 </div>
 <button class="btn btn-danger" onclick="clearAll()">清空所有数据</button>
+<div class="hint">提示：导出的 JSON 备份为原始明文数据（不受密码锁加密），请妥善保管，不要外传。</div>
 
 <div class="footer">复利定投终值 · 每月初投入 · 本地 + 云端双份保存<br>FINANCIAL FREEDOM COUNTDOWN<br><span id="appVersion" style="font-size:11px"></span> · <button class="upd-link" onclick="checkUpdate(true)">检查更新</button></div>
 
@@ -538,8 +666,65 @@ canvas.chart{width:100%;display:block;touch-action:none}
     </div>
 </div>
 
+<!-- ===== 分享快照预览弹窗 ===== -->
+<div class="modal-overlay" id="snapModal">
+    <div class="modal">
+        <h3>分享快照</h3>
+        <p>长按图片可保存 / 分享；浏览器环境可点下方按钮直接下载</p>
+        <img id="snapImg" alt="财务自由快照" style="width:100%;border-radius:14px;border:1px solid var(--line);margin-bottom:14px">
+        <div class="modal-btns">
+            <button class="btn btn-ghost" onclick="closeSnapModal()">关闭</button>
+            <button class="btn btn-primary" id="snapDownloadBtn">下载图片</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 密码锁设置弹窗 ===== -->
+<div class="modal-overlay" id="pwdSetModal">
+    <div class="modal">
+        <h3>密码锁设置</h3>
+        <p id="pwdSetDesc">开启密码锁后，每次打开 App 需要输入密码，财务数据将加密保存在本机。</p>
+        <input type="password" id="pwdOld" placeholder="当前密码" inputmode="decimal" autocomplete="off" style="margin-bottom:10px;display:none">
+        <input type="password" id="pwdNew1" placeholder="新密码（至少 4 位）" inputmode="decimal" autocomplete="off" style="margin-bottom:10px" onkeydown="if(event.key==='Enter')changeAppPassword()">
+        <input type="password" id="pwdNew2" placeholder="重复新密码" inputmode="decimal" autocomplete="off" style="margin-bottom:10px" onkeydown="if(event.key==='Enter')changeAppPassword()">
+        <div class="sync-status" id="pwdSetErr" style="color:var(--red);text-align:center"></div>
+        <div class="modal-btns" style="margin-top:16px">
+            <button class="btn btn-ghost" onclick="closePwdSetModal()">关闭</button>
+            <button class="btn btn-danger" id="pwdOffBtn" onclick="turnOffPassword()" style="display:none">关闭密码锁</button>
+            <button class="btn btn-primary" id="pwdSaveBtn" onclick="changeAppPassword()">开启密码锁</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 快照渲染卡片（离屏，仅供生成图片） ===== -->
+<div id="snapCard" aria-hidden="true">
+    <div class="sc-head">
+        <div class="sc-logo" id="scLogo">◆</div>
+        <div>
+            <div class="sc-name" id="scName">我的财务自由</div>
+            <div class="sc-sub" id="scDate"></div>
+        </div>
+        <div class="sc-pct" id="scPct"></div>
+    </div>
+    <div class="sc-hero-label">已积累本金（含现金）· SAVED</div>
+    <div class="sc-hero" id="scPv"></div>
+    <div class="sc-track"><div class="sc-fill" id="scBar"></div></div>
+    <div class="sc-meta"><span id="scTarget"></span><span id="scGap"></span></div>
+    <div class="sc-stats">
+        <div class="sc-stat"><div class="sc-s-label">还需</div><div class="sc-s-val" id="scMonths"></div></div>
+        <div class="sc-stat"><div class="sc-s-label">约合</div><div class="sc-s-val" id="scYears"></div></div>
+        <div class="sc-stat"><div class="sc-s-label">被动收入覆盖</div><div class="sc-s-val" id="scPassive"></div></div>
+        <div class="sc-stat"><div class="sc-s-label">储蓄率均值</div><div class="sc-s-val" id="scSav"></div></div>
+    </div>
+    <div class="sc-chart-title">增长预测 · FORECAST</div>
+    <canvas id="scChart" width="672" height="380"></canvas>
+    <div class="sc-foot">复利定投终值 · 每月初投入 · FINANCIAL FREEDOM COUNTDOWN</div>
+</div>
+
 <div class="toast" id="toast"></div>
 
+<script src="html2canvas.min.js"></script>
+<script src="jspdf.umd.min.js"></script>
 <script>
 // ====== 存储持久化请求 ======
 if (navigator.storage && navigator.storage.persist) {
@@ -550,6 +735,45 @@ if (navigator.storage && navigator.storage.persist) {
 
 // ====== 数据存储 ======
 const STORAGE_KEY = 'financeFreedomApp_v3';
+const STORAGE_ENC_KEY = 'financeFreedomApp_v3_enc';
+const LOCK_FLAG = 'app_lock_enabled';
+const LOCK_SALT = 'app_lock_salt';
+let appUnlocked = false;
+let userPassword = null; // 解锁成功后内存持有密码，关闭页面即丢失
+
+function lockEnabled() { return localStorage.getItem(LOCK_FLAG) === '1'; }
+
+// 派生密钥：密码 + 盐 生成 AES 密钥
+function deriveKey(password, saltStr) {
+    return CryptoJS.PBKDF2(password, saltStr, { keySize: 256 / 32, iterations: 8000, hasher: CryptoJS.algo.SHA256 });
+}
+// 加密 state 对象，返回加密文本（格式：ivHex:base64密文）
+function encryptState(stateObj, password) {
+    let salt = localStorage.getItem(LOCK_SALT);
+    if (!salt) {
+        salt = CryptoJS.lib.WordArray.random(128 / 8).toString();
+        localStorage.setItem(LOCK_SALT, salt);
+    }
+    const key = deriveKey(password, salt);
+    const iv = CryptoJS.lib.WordArray.random(128 / 8); // CBC 必须显式给随机 IV
+    const ct = CryptoJS.AES.encrypt(JSON.stringify(stateObj), key, { iv: iv }).toString();
+    return iv.toString() + ':' + ct;
+}
+// 解密，失败返回 null
+function decryptState(encText, password) {
+    const salt = localStorage.getItem(LOCK_SALT);
+    if (!salt) return null;
+    try {
+        const sep = encText.indexOf(':');
+        if (sep < 0) return null;
+        const iv = CryptoJS.enc.Hex.parse(encText.slice(0, sep));
+        const key = deriveKey(password, salt);
+        const bytes = CryptoJS.AES.decrypt(encText.slice(sep + 1), key, { iv: iv });
+        const jsonStr = bytes.toString(CryptoJS.enc.Utf8);
+        if (!jsonStr) return null;
+        return JSON.parse(jsonStr);
+    } catch(e) { console.warn('解密失败', e); return null; }
+}
 const MS_PER_MONTH = 30.44 * 24 * 3600 * 1000;
 let state = {
     pv: 100000,
@@ -565,8 +789,26 @@ let state = {
     createdAt: Date.now(),
     chartScale: 'linear',
     funds: [],
+    monthly: [],
     sync: { token: '', gistId: '', auto: false }
 };
+
+// 月度记录查重：ym（YYYY-MM）为唯一主键，同月只保留最新一条（以 ts 为准），防止导入数据出现同月多条、重复计入储蓄率均值
+function dedupeMonthly() {
+    if (!Array.isArray(state.monthly)) { state.monthly = []; return; }
+    const map = new Map();
+    state.monthly.forEach(m => {
+        if (!m || !m.ym) return;
+        const old = map.get(m.ym);
+        if (!old || (m.ts || 0) >= (old.ts || 0)) map.set(m.ym, m);
+    });
+    state.monthly = [...map.values()];
+    sortMonthly();
+}
+// 数组变更后统一按月份升序排序
+function sortMonthly() {
+    if (Array.isArray(state.monthly)) state.monthly.sort((a, b) => a.ym.localeCompare(b.ym));
+}
 
 // 加载数据
 function loadState() {
@@ -581,6 +823,7 @@ function loadState() {
     if (!state.createdAt) state.createdAt = Date.now();
     if (typeof state.cash !== 'number') state.cash = 0;
     if (!Array.isArray(state.unlockedBadges)) state.unlockedBadges = [];
+    dedupeMonthly();
     if (typeof state.peakTotal !== 'number') state.peakTotal = 0;
     if (!state.chartScale) state.chartScale = 'linear';
     document.getElementById('pv').value = state.pv;
@@ -595,10 +838,17 @@ function loadState() {
     refreshScaleBtns();
 }
 
-// 保存数据（纯本地）
+// 保存数据（开启密码锁后只写加密版本，禁止明文落盘）
 function saveState() {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        if (lockEnabled()) {
+            if (!appUnlocked || !userPassword) { console.warn('未解锁，禁止保存数据'); return; }
+            localStorage.setItem(STORAGE_ENC_KEY, encryptState(state, userPassword));
+            localStorage.removeItem(STORAGE_KEY);
+        } else {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            localStorage.removeItem(STORAGE_ENC_KEY);
+        }
     } catch(e) { console.warn('保存失败', e); }
 }
 
@@ -736,6 +986,8 @@ function updateAll() {
 
     drawRateChart();
     startChartAnim();
+    renderMonthly();
+    renderYearReview();
     saveState();
 }
 
@@ -2080,6 +2332,7 @@ function clearAll() {
     state = { pv: 100000, pmt: 20000, rate: 10, fv: 3000000, history: [], cash: 0, mexpense: 10000, income: 30000, rIncome: 30000, rExpense: 10000, createdAt: Date.now(),
               chartScale: 'linear',
               holdings: [],
+              monthly: [],
               sync: { token:'', gistId:'', auto:false } };
     document.getElementById('pv').value = state.pv;
     document.getElementById('pmt').value = state.pmt;
@@ -2138,6 +2391,7 @@ function applyImportedState(parsed) {
     if (!state.createdAt) state.createdAt = Date.now();
     if (typeof state.cash !== 'number') state.cash = 0;
     if (!Array.isArray(state.unlockedBadges)) state.unlockedBadges = [];
+    dedupeMonthly();
     if (typeof state.peakTotal !== 'number') state.peakTotal = 0;
     if (!state.chartScale) state.chartScale = 'linear';
     document.getElementById('pv').value = state.pv;
@@ -2147,6 +2401,8 @@ function applyImportedState(parsed) {
     saveState();
     updateAll();
     renderHistory();
+    renderMonthly();      // 导入备份后自动刷新月度列表与趋势曲线
+    renderYearReview();
     refreshScaleBtns();
 }
 
@@ -2183,6 +2439,413 @@ function saveAndUpdate() {
     updateAll();
 }
 
+// ====== 月度储蓄记录 ======
+function ymNow() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+function monthlyOf(ym) { return (state.monthly || []).find(m => m.ym === ym); }
+function updateMsPreview() {
+    const inc = parseFloat(document.getElementById('msIncome').value);
+    const exp = parseFloat(document.getElementById('msExpense').value);
+    const el = document.getElementById('msPreview');
+    if (isNaN(inc) || inc < 0 || isNaN(exp) || exp < 0) { el.textContent = '--'; return; }
+    const saved = inc - exp;
+    el.textContent = '¥' + fmt.format(saved) + ' · ' + (inc > 0 ? (saved / inc * 100).toFixed(1) + '%' : '--');
+    el.style.color = rateColor({ income: inc, rate: inc > 0 ? saved / inc * 100 : null });
+}
+function saveMonthly() {
+    const ym = document.getElementById('msMonth').value || ymNow();
+    // 边界防护：禁止录入未来月份
+    if (ym > ymNow()) { showToast('不能录入未来月份', true); return; }
+    const inc = parseFloat(document.getElementById('msIncome').value);
+    const exp = parseFloat(document.getElementById('msExpense').value);
+    // 边界防护：收入支出必须 >= 0，负数自动拦截
+    if (isNaN(inc) || inc < 0 || isNaN(exp) || exp < 0) { showToast('请填写本月收入和支出（存 0 也要填数字）', true); return; }
+    const saved = Math.round((inc - exp) * 100) / 100;
+    // 收入 = 0 时储蓄率记 null（显示 --），防止除 0
+    const rate = inc > 0 ? Math.round(saved / inc * 1000) / 10 : null;
+    const rec = { ym, income: inc, expense: exp, saved, rate, ts: Date.now() };
+    // 规则1：用 ym（YYYY-MM）查同月记录
+    const i = (state.monthly || []).findIndex(m => m.ym === ym);
+    if (i >= 0) {
+        // 规则2：找到同月记录，弹窗确认覆盖，拒绝则终止
+        const old = state.monthly[i];
+        if (!confirm(ym + ' 已有记录（收入 ¥' + fmt.format(old.income) + ' · 支出 ¥' + fmt.format(old.expense) + ' · 结余 ¥' + fmt.format(old.saved) + '）。\n确认覆盖为本次填写的内容？')) return;
+        state.monthly[i] = rec;
+    } else {
+        state.monthly.push(rec);
+    }
+    sortMonthly(); // 数组变更后统一排序
+    if (ym === ymNow()) {
+        document.getElementById('rIncome').value = inc;
+        document.getElementById('rExpense').value = exp;
+        saveAndUpdate();
+    }
+    // 规则3：保存 + 刷新列表 + 重绘曲线
+    saveState(); renderMonthly(); renderYearReview(); updateAll();
+    showToast(ym + ' 已记录：结余 ¥' + fmt.format(saved) + ' · 储蓄率 ' + (rate == null ? '--' : rate.toFixed(1) + '%'));
+}
+function editMonthly(ym) {
+    const m = monthlyOf(ym); if (!m) return;
+    document.getElementById('msMonth').value = m.ym;
+    document.getElementById('msIncome').value = m.income;
+    document.getElementById('msExpense').value = m.expense;
+    updateMsPreview();
+    document.getElementById('msMonth').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function delMonthly(ym) {
+    if (!confirm('删除 ' + ym + ' 的储蓄记录？')) return;
+    state.monthly = (state.monthly || []).filter(m => m.ym !== ym);
+    saveState(); renderMonthly(); renderYearReview();
+    showToast('已删除 ' + ym + ' 记录');
+}
+// 储蓄率颜色分档：≥50 绿；30–49.9 蓝；10–29.9 黄；<10 红；无效（收入0）灰
+function rateColor(m) {
+    if (!(m.income > 0) || m.rate == null) return 'var(--faint)';
+    const r = m.rate;
+    if (r >= 50) return 'var(--green)';
+    if (r >= 30) return 'var(--accent)';
+    if (r >= 10) return 'var(--amber)';
+    return 'var(--red)';
+}
+function rateText(m) {
+    return (m.income > 0 && m.rate != null) ? m.rate.toFixed(1) + '%' : '--';
+}
+
+// 历史列表折叠开关：默认 ≤8 条展开，多了自动收起；手动切换后不再自动变
+let msListOpen = null;
+function toggleMsList() {
+    const panel = document.getElementById('msListPanel');
+    msListOpen = panel.style.display === 'none';
+    applyMsList();
+}
+function applyMsList() {
+    const n = (state.monthly || []).length;
+    const open = msListOpen != null ? msListOpen : n <= 8;
+    document.getElementById('msListPanel').style.display = open ? '' : 'none';
+    const btn = document.getElementById('msListToggle');
+    if (btn) btn.textContent = (open ? '▴' : '▾') + ' 历史月度记录（' + n + ' 条）';
+}
+
+function renderMonthly() {
+    if (!Array.isArray(state.monthly)) state.monthly = [];
+    const cur = ymNow();
+    const mEl = document.getElementById('msMonth');
+    if (!mEl.value) mEl.value = cur;
+    const rec = monthlyOf(mEl.value);
+    const incEl = document.getElementById('msIncome'), expEl = document.getElementById('msExpense');
+    if (rec && document.activeElement !== incEl && document.activeElement !== expEl) {
+        incEl.value = rec.income;
+        expEl.value = rec.expense;
+    }
+    updateMsPreview();
+    document.getElementById('msReminder').style.display = monthlyOf(cur) ? 'none' : '';
+    applyMsList();
+    drawMonthlyChart();
+    const list = document.getElementById('msList');
+    if (!state.monthly.length) { list.innerHTML = '<div class="empty">暂无月度记录</div>'; return; }
+    list.innerHTML = state.monthly.slice().sort((a, b) => b.ym.localeCompare(a.ym)).map(m => `
+        <div class="ms-row">
+            <div>
+                <div class="ms-ym">${m.ym}</div>
+                <div class="ms-sub">入 ¥${fmt.format(m.income)} · 出 ¥${fmt.format(m.expense)} · 存 ¥${fmt.format(m.saved)}</div>
+            </div>
+            <div style="display:flex;align-items:center">
+                <span class="ms-rate" style="color:${rateColor(m)}">${rateText(m)}</span>
+                <span class="ms-ops"><span onclick="editMonthly('${m.ym}')">改</span><span onclick="delMonthly('${m.ym}')">删</span></span>
+            </div>
+        </div>`).join('');
+}
+function avgSaveRate(year) {
+    // 收入为 0 的月份储蓄率为 null（显示 --），不计入均值，防止除 0 并避免拉低均值
+    const recs = (state.monthly || []).filter(m => String(m.ym).slice(0, 4) === String(year) && m.income > 0 && typeof m.rate === 'number');
+    if (!recs.length) return null;
+    return recs.reduce((s, m) => s + m.rate, 0) / recs.length;
+}
+
+// ====== 月度趋势曲线（结余金额 / 储蓄率，数据源 state.monthly） ======
+let msChartMode = 'saved';
+let msScrubIdx = null;
+let msChartGeom = null;
+
+function setMsChartMode(m) {
+    msChartMode = m;
+    document.getElementById('msModeSaved').classList.toggle('on', m === 'saved');
+    document.getElementById('msModeRate').classList.toggle('on', m === 'rate');
+    msScrubIdx = null;
+    drawMonthlyChart();
+}
+
+function drawMonthlyChart() {
+    const canvas = document.getElementById('msChart');
+    if (!canvas) return;
+    const { ctx, w, h } = setupCanvas(canvas, 180);
+    ctx.clearRect(0, 0, w, h);
+    // X 轴按月份升序，数据越多曲线越长，天然支持多年波动
+    const recs = (state.monthly || []).slice().sort((a, b) => a.ym.localeCompare(b.ym));
+    if (!recs.length) {
+        ctx.fillStyle = C.text; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('记录月度储蓄后，这里会显示趋势曲线', w / 2, h / 2);
+        msChartGeom = null;
+        return;
+    }
+    const isRate = msChartMode === 'rate';
+    // 储蓄率模式下，收入为 0 的月份无数值，画线时断点跳过
+    const vals = recs.map(m => isRate ? (m.income > 0 && m.rate != null ? m.rate : null) : (m.saved == null ? null : m.saved));
+    const nums = vals.filter(v => v != null);
+    if (!nums.length) {
+        ctx.fillStyle = C.text; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('暂无可绘制的数据', w / 2, h / 2);
+        msChartGeom = null;
+        return;
+    }
+    let vMin = Math.min(...nums, 0), vMax = Math.max(...nums, 0);
+    // 目标参考线：储蓄率模式 40%；结余金额模式取「每月基准定投」
+    const target = isRate ? 40 : (getInputs().pmt > 0 ? getInputs().pmt : 0);
+    if (target > 0) vMax = Math.max(vMax, target);
+    if (vMax - vMin < 1e-6) vMax = vMin + 1;
+    const span = vMax - vMin;
+    vMax += span * 0.12; vMin -= span * 0.12;
+
+    const padL = 46, padR = 12, padT = 16, padB = 26;
+    const cw = w - padL - padR, ch = h - padT - padB;
+    const n = recs.length;
+    const xOf = i => padL + (n === 1 ? cw / 2 : (i / (n - 1)) * cw);
+    const yOf = v => padT + ch - ((v - vMin) / (vMax - vMin)) * ch;
+    const fmtV = v => {
+        if (isRate) return v.toFixed(0) + '%';
+        const sign = v < 0 ? '-' : '';
+        const a = Math.abs(v);
+        return sign + (a >= 10000 ? (a / 10000).toFixed(1) + '万' : String(Math.round(a)));
+    };
+    const lineColor = isRate ? C.blue : C.green;
+
+    // 网格 + Y 轴刻度
+    ctx.font = '10px sans-serif'; ctx.lineWidth = 1;
+    for (let i = 0; i <= 3; i++) {
+        const v = vMax - (vMax - vMin) * i / 3;
+        const y = yOf(v);
+        ctx.strokeStyle = C.grid;
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+        ctx.fillStyle = C.text; ctx.textAlign = 'right';
+        ctx.fillText(fmtV(v), padL - 6, y + 3);
+    }
+    // X 轴月份标签：数据多时自动抽稀（最多约 6 个）
+    const step = Math.max(1, Math.ceil(n / 6));
+    ctx.fillStyle = C.text; ctx.textAlign = 'center';
+    for (let i = 0; i < n; i += step) ctx.fillText(recs[i].ym.slice(2), xOf(i), h - 8);
+    if ((n - 1) % step !== 0) ctx.fillText(recs[n - 1].ym.slice(2), xOf(n - 1), h - 8);
+
+    // 目标参考线
+    if (target > 0) {
+        const ty = yOf(target);
+        ctx.setLineDash([5, 4]);
+        ctx.strokeStyle = C.amber;
+        ctx.beginPath(); ctx.moveTo(padL, ty); ctx.lineTo(w - padR, ty); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = C.amber; ctx.textAlign = 'right';
+        ctx.fillText(isRate ? '目标储蓄率 40%' : '基准定投 ¥' + fmt.format(Math.round(target)), w - padR - 2, ty - 4);
+    }
+
+    // 折线 + 数据点（null 断点分段绘制）
+    const pts = [];
+    ctx.strokeStyle = lineColor; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    let pen = false;
+    vals.forEach((v, i) => {
+        if (v == null) { pen = false; return; }
+        const x = xOf(i), y = yOf(v);
+        pts.push({ x, y, i });
+        if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    pts.forEach(p => {
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = lineColor; ctx.lineWidth = 1.5; ctx.stroke();
+    });
+    msChartGeom = { pts };
+
+    // 触摸选中：竖线 + tooltip（收入 / 支出 / 结余 / 储蓄率）
+    if (msScrubIdx != null && recs[msScrubIdx]) {
+        const i = msScrubIdx, m = recs[i];
+        const x = xOf(i);
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + ch); ctx.stroke();
+        ctx.setLineDash([]);
+        if (vals[i] != null) {
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(x, yOf(vals[i]), 5, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = lineColor; ctx.lineWidth = 2; ctx.stroke();
+        }
+        const lines = [
+            m.ym,
+            '收入 ¥' + fmt.format(m.income) + ' · 支出 ¥' + fmt.format(m.expense),
+            '结余 ¥' + fmt.format(m.saved) + ' · 储蓄率 ' + rateText(m)
+        ];
+        const bw = 210, bh = 54;
+        let bx = x + 12;
+        if (bx + bw > w - 4) bx = x - bw - 12;
+        if (bx < 4) bx = 4;
+        const by = padT + 4;
+        ctx.fillStyle = 'rgba(16,26,46,0.96)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 10); else ctx.rect(bx, by, bw, bh);
+        ctx.fill(); ctx.stroke();
+        ctx.textAlign = 'left';
+        lines.forEach((t, li) => {
+            ctx.fillStyle = li === 0 ? '#5b8cff' : (li === 2 ? '#fff' : '#8a94a8');
+            ctx.font = li === 0 ? 'bold 11px sans-serif' : '11px sans-serif';
+            ctx.fillText(t, bx + 10, by + 16 + li * 15);
+        });
+    }
+}
+
+// 触摸滑动查看单月明细
+(function initMsScrub() {
+    const canvas = document.getElementById('msChart');
+    if (!canvas) return;
+    let dragging = false;
+    const idxFromEvent = e => {
+        if (!msChartGeom || !msChartGeom.pts.length) return null;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        let best = null, bd = Infinity;
+        msChartGeom.pts.forEach(p => { const d = Math.abs(p.x - x); if (d < bd) { bd = d; best = p.i; } });
+        return best;
+    };
+    canvas.addEventListener('pointerdown', e => { dragging = true; msScrubIdx = idxFromEvent(e); drawMonthlyChart(); });
+    canvas.addEventListener('pointermove', e => { if (!dragging) return; msScrubIdx = idxFromEvent(e); drawMonthlyChart(); });
+    const end = () => { if (!dragging) return; dragging = false; msScrubIdx = null; drawMonthlyChart(); };
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+    canvas.addEventListener('pointerleave', end);
+})();
+
+// ====== 年度复盘 ======
+let yrSelected = null;
+function renderYearReview() {
+    const years = new Set();
+    years.add(String(new Date().getFullYear()));
+    (state.history || []).forEach(h => { if (h.ts) years.add(String(new Date(h.ts).getFullYear())); });
+    (state.monthly || []).forEach(m => { if (m.ym) years.add(String(m.ym).slice(0, 4)); });
+    const ys = [...years].sort().reverse();
+    if (!yrSelected || !years.has(yrSelected)) yrSelected = ys[0];
+    document.getElementById('yrChips').innerHTML = ys.map(y => `<button class="${y === yrSelected ? 'on' : ''}" onclick="selYear('${y}')">${y}</button>`).join('');
+    const y = yrSelected;
+    let tin = 0, tout = 0, tdiv = 0, cnt = 0;
+    (state.history || []).forEach(h => {
+        if (!h.ts || String(new Date(h.ts).getFullYear()) !== y) return;
+        cnt++;
+        if (h.side === 'div') tdiv += h.amount || 0;
+        else if (h.side === 'sell') tout += Math.abs(h.amount || 0);
+        else if ((h.amount || 0) > 0) tin += h.amount;
+    });
+    document.getElementById('yrIn').textContent = '¥' + fmt.format(Math.round(tin));
+    document.getElementById('yrOut').textContent = '¥' + fmt.format(Math.round(tout));
+    document.getElementById('yrDiv').textContent = '¥' + fmt.format(Math.round(tdiv));
+    const recs = (state.monthly || []).filter(m => String(m.ym).slice(0, 4) === y);
+    const avg = avgSaveRate(y);
+    document.getElementById('yrRate').textContent = avg == null ? '--' : avg.toFixed(1) + '%';
+    const net = tin - tout;
+    document.getElementById('yrNet').innerHTML = `净投入 <span class="num" style="color:${net >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:700">${net >= 0 ? '+' : '-'}¥${fmt.format(Math.abs(Math.round(net)))}</span> · 全年 ${cnt} 笔交易`;
+    document.getElementById('yrHint').textContent = '总投入含买入与现金存入；储蓄率均值基于 ' + recs.length + ' 个月度记录（每月必填，存 0 也记一笔；收入为 0 的月份储蓄率记 --，不计入均值）。';
+}
+function selYear(y) { yrSelected = y; renderYearReview(); }
+
+// ====== 分享快照（图片 / PDF） ======
+let lastSnapDataUrl = null;
+function buildSnapCard() {
+    const pv = parseFloat(document.getElementById('pv').value) || 0;
+    const cash = Math.max(0, state.cash || 0);
+    const total = pv + cash;
+    const fv = parseFloat(document.getElementById('fv').value) || 1;
+    const pct = Math.min(100, total / fv * 100);
+    document.getElementById('scLogo').textContent = document.getElementById('appLogo').textContent;
+    document.getElementById('scName').textContent = document.getElementById('appName').textContent;
+    document.getElementById('scDate').textContent = fmtDate() + ' · 4% 法则 · 指数定投';
+    document.getElementById('scPct').textContent = pct.toFixed(1) + '%';
+    document.getElementById('scPv').textContent = '¥' + fmt.format(Math.round(total));
+    document.getElementById('scBar').style.width = pct + '%';
+    document.getElementById('scTarget').textContent = '目标 ¥' + fmt.format(fv);
+    const gap = Math.max(0, fv - total);
+    document.getElementById('scGap').textContent = gap > 0 ? '还差 ¥' + fmt.format(Math.round(gap)) : '目标已达成 🎉';
+    document.getElementById('scMonths').textContent = document.getElementById('monthsLeft').textContent;
+    document.getElementById('scYears').textContent = document.getElementById('yearsLeft').textContent;
+    document.getElementById('scPassive').textContent = document.getElementById('passivePct').textContent;
+    const avg = avgSaveRate(String(new Date().getFullYear()));
+    document.getElementById('scSav').textContent = avg == null ? '--' : avg.toFixed(1) + '%';
+    const src = document.getElementById('projChart');
+    const dst = document.getElementById('scChart');
+    const dctx = dst.getContext('2d');
+    dctx.fillStyle = '#0b1220'; dctx.fillRect(0, 0, dst.width, dst.height);
+    if (src && src.width > 0) dctx.drawImage(src, 0, 0, dst.width, dst.height);
+}
+// 快照组件按需加载：优先本地 www 目录，缺失时回退 CDN（手机网页端只部署单 html 时兜底）
+const SNAP_CDN = {
+    html2canvas: 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+    jspdf: 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js'
+};
+function loadScriptOnce(src) {
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('加载失败: ' + src));
+        document.head.appendChild(s);
+    });
+}
+async function ensureSnapLibs(kind) {
+    if (typeof html2canvas === 'undefined') {
+        try { await loadScriptOnce('html2canvas.min.js'); }
+        catch(e) { try { await loadScriptOnce(SNAP_CDN.html2canvas); } catch(e2) { return false; } }
+    }
+    if (kind === 'pdf' && !(window.jspdf && window.jspdf.jsPDF)) {
+        try { await loadScriptOnce('jspdf.umd.min.js'); }
+        catch(e) { try { await loadScriptOnce(SNAP_CDN.jspdf); } catch(e2) { return false; } }
+    }
+    return true;
+}
+async function exportSnapshot(kind) {
+    if (typeof html2canvas === 'undefined' || (kind === 'pdf' && !(window.jspdf && window.jspdf.jsPDF))) {
+        showToast('正在加载快照组件…');
+        const ok = await ensureSnapLibs(kind);
+        if (!ok) { showToast('快照组件加载失败，请检查网络或 www 目录库文件', true); return; }
+    }
+    buildSnapCard();
+    showToast('正在生成快照…');
+    setTimeout(() => {
+        html2canvas(document.getElementById('snapCard'), { backgroundColor: '#0b1220', scale: 2, logging: false }).then(canvas => {
+            const dataUrl = canvas.toDataURL('image/png');
+            lastSnapDataUrl = dataUrl;
+            const fname = '财务自由快照_' + new Date().toISOString().slice(0, 10);
+            if (kind === 'pdf') {
+                try {
+                    const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+                    const pw = 150, ph = canvas.height * pw / canvas.width;
+                    pdf.addImage(dataUrl, 'PNG', (210 - pw) / 2, 30, pw, Math.min(ph, 230));
+                    pdf.save(fname + '.pdf');
+                    showToast('PDF 已生成，请在下载目录查看');
+                } catch (e) { showToast('PDF 生成失败', true); }
+            } else {
+                document.getElementById('snapImg').src = dataUrl;
+                document.getElementById('snapModal').classList.add('active');
+            }
+        }).catch(() => showToast('快照生成失败，请重试', true));
+    }, 80);
+}
+function closeSnapModal() { document.getElementById('snapModal').classList.remove('active'); }
+function downloadSnap() {
+    if (!lastSnapDataUrl) { closeSnapModal(); return; }
+    try {
+        const a = document.createElement('a');
+        a.href = lastSnapDataUrl;
+        a.download = '财务自由快照_' + new Date().toISOString().slice(0, 10) + '.png';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        showToast('已开始下载');
+    } catch (e) { showToast('下载失败，请长按图片保存', true); }
+}
+
 // ====== Toast ======
 let toastTimer;
 function showToast(msg, isErr) {
@@ -2194,22 +2857,152 @@ function showToast(msg, isErr) {
     toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
 }
 
-// ====== 初始化 ======
-document.getElementById('todayDate').textContent = fmtDate();
-loadState();
-applyAppHeader();
-renderBadges();
-updateAll();
-setAhType('stock');
-renderHoldings();
-if (state.holdings && state.holdings.length) setTimeout(() => refreshHoldings(true), 400);
-setInterval(() => { migrateHoldings(); if (state.holdings.length) refreshHoldings(true); }, 60000);
+// ====== 密码锁 ======
+// 页面加载优先执行密码逻辑，替代直接 loadState
+function initAppWithLock() {
+    const lockScreen = document.getElementById('lockScreen');
+    if (!lockEnabled()) {
+        // 密码锁关闭，直接加载原来流程，隐藏锁屏
+        lockScreen.style.display = 'none';
+        loadState();
+        afterAppLoad();
+        return;
+    }
+    // 需要解锁模式
+    if (typeof CryptoJS === 'undefined') {
+        document.getElementById('lockErr').textContent = '加密组件未加载，请检查 www 目录 crypto-js.min.js';
+    }
+    lockScreen.style.display = 'flex';
+    setTimeout(() => document.getElementById('lockPwd').focus(), 300);
+}
 
-window.addEventListener('resize', () => { drawProjectionChart(); drawRateChart(); });
+// 锁屏提交（解锁）
+function lockSubmit() {
+    const p1 = document.getElementById('lockPwd').value;
+    const errEl = document.getElementById('lockErr');
+    errEl.textContent = '';
+    if (!p1) { errEl.textContent = '请输入密码'; return; }
+    if (typeof CryptoJS === 'undefined') { errEl.textContent = '加密组件未加载，无法解密'; return; }
+    const encText = localStorage.getItem(STORAGE_ENC_KEY);
+    if (!encText) { errEl.textContent = '数据异常，可点「忘记密码」重置'; return; }
+    const decrypted = decryptState(encText, p1);
+    if (!decrypted) { errEl.textContent = '密码错误，请重试'; return; }
+    // 解锁成功
+    userPassword = p1;
+    appUnlocked = true;
+    state = decrypted;
+    document.getElementById('lockScreen').style.display = 'none';
+    loadState();
+    afterAppLoad();
+    showToast('解锁成功');
+}
 
-document.getElementById('addModal').addEventListener('click', function(e) {
-    if (e.target === this) closeAddModal();
-});
+// 忘记密码：全部清空（密钥由密码派生，没有后台，无法找回）
+function lockResetAll() {
+    if (!confirm('忘记密码无法找回数据。\n确认重置？将删除本机全部财务数据，不可恢复！建议先用旧设备导出 JSON 备份。')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_ENC_KEY);
+    localStorage.removeItem(LOCK_FLAG);
+    localStorage.removeItem(LOCK_SALT);
+    // 重置到初始 state
+    state = { pv: 100000, pmt: 20000, rate: 10, fv: 3000000, history: [], cash: 0, mexpense: 10000, income: 30000, rIncome: 30000, rExpense: 10000, createdAt: Date.now(),
+              chartScale: 'linear',
+              holdings: [],
+              monthly: [],
+              sync: { token:'', gistId:'', auto:false } };
+    appUnlocked = false;
+    userPassword = null;
+    document.getElementById('lockScreen').style.display = 'none';
+    loadState();
+    afterAppLoad();
+    saveState();
+    showToast('已重置，数据已清空');
+}
+
+// 设置入口按钮文案
+function refreshLockBtn() {
+    const btn = document.getElementById('lockSetBtn');
+    if (btn) btn.textContent = lockEnabled() ? '已开启 · 修改' : '未开启 · 设置';
+}
+
+function openPasswordSetting() {
+    document.getElementById('pwdOld').value = '';
+    document.getElementById('pwdNew1').value = '';
+    document.getElementById('pwdNew2').value = '';
+    document.getElementById('pwdSetErr').textContent = '';
+    const on = lockEnabled();
+    document.getElementById('pwdOld').style.display = on ? '' : 'none';
+    document.getElementById('pwdOffBtn').style.display = on ? '' : 'none';
+    document.getElementById('pwdSaveBtn').textContent = on ? '修改密码' : '开启密码锁';
+    document.getElementById('pwdSetDesc').textContent = on
+        ? '密码锁已开启：可修改密码，或关闭密码锁（数据将恢复明文保存）。'
+        : '开启密码锁后，每次打开 App 需要输入密码，财务数据将加密保存在本机。';
+    document.getElementById('pwdSetModal').classList.add('active');
+}
+function closePwdSetModal() { document.getElementById('pwdSetModal').classList.remove('active'); }
+
+// 开启 / 修改密码
+function changeAppPassword() {
+    const on = lockEnabled();
+    const old = document.getElementById('pwdOld').value;
+    const n1 = document.getElementById('pwdNew1').value;
+    const n2 = document.getElementById('pwdNew2').value;
+    const errEl = document.getElementById('pwdSetErr');
+    errEl.textContent = '';
+    if (typeof CryptoJS === 'undefined') { errEl.textContent = '加密组件未加载，请检查 crypto-js.min.js'; return; }
+    if (on && old !== userPassword) { errEl.textContent = '当前密码错误'; return; }
+    if (!n1 || n1.length < 4) { errEl.textContent = '新密码至少 4 位'; return; }
+    if (n1 !== n2) { errEl.textContent = '两次输入的新密码不一致'; return; }
+    userPassword = n1;
+    appUnlocked = true;
+    if (!on) {
+        localStorage.removeItem(LOCK_SALT); // 首次开启换新盐
+        localStorage.setItem(LOCK_FLAG, '1');
+    }
+    saveState(); // 加密保存，删除明文
+    closePwdSetModal();
+    refreshLockBtn();
+    showToast(on ? '密码修改完成' : '密码锁已开启，数据已加密');
+}
+
+// 关闭密码锁，恢复明文存储
+function turnOffPassword() {
+    const old = document.getElementById('pwdOld').value;
+    const errEl = document.getElementById('pwdSetErr');
+    errEl.textContent = '';
+    if (old !== userPassword) { errEl.textContent = '请输入正确的当前密码'; return; }
+    if (!confirm('关闭密码锁后，数据将以明文保存在本机存储。确定关闭？')) return;
+    localStorage.setItem(LOCK_FLAG, '0');
+    saveState(); // 触发明文写回，并删除加密副本
+    userPassword = null;
+    appUnlocked = false;
+    localStorage.removeItem(LOCK_SALT);
+    closePwdSetModal();
+    refreshLockBtn();
+    showToast('密码锁已关闭');
+}
+
+// ====== 初始化（解锁成功后执行；不要直接调用 loadState） ======
+function afterAppLoad() {
+    document.getElementById('todayDate').textContent = fmtDate();
+    applyAppHeader();
+    renderBadges();
+    updateAll();
+    setAhType('stock');
+    renderHoldings();
+    renderMonthly();
+    refreshLockBtn();
+    if (state.holdings && state.holdings.length) setTimeout(() => refreshHoldings(true), 400);
+    setInterval(() => { migrateHoldings(); if (state.holdings.length) refreshHoldings(true); }, 60000);
+
+    window.addEventListener('resize', () => { drawProjectionChart(); drawRateChart(); drawMonthlyChart(); });
+
+    document.getElementById('addModal').addEventListener('click', function(e) {
+        if (e.target === this) closeAddModal();
+    });
+    document.getElementById('pwdSetModal').addEventListener('click', function(e) {
+        if (e.target === this) closePwdSetModal();
+    });
 
 document.getElementById('addAmount').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') confirmAdd();
@@ -2239,11 +3032,19 @@ document.getElementById('badgeModal').addEventListener('click', function(e) {
 document.getElementById('divModal').addEventListener('click', function(e) {
     if (e.target === this) closeDivModal();
 });
+document.getElementById('snapModal').addEventListener('click', function(e) {
+    if (e.target === this) closeSnapModal();
+});
+document.getElementById('snapDownloadBtn').addEventListener('click', downloadSnap);
 document.getElementById('divPerShare').addEventListener('input', updateDivPreview);
 document.getElementById('divShares').addEventListener('input', updateDivPreview);
-document.getElementById('addCode').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') document.getElementById('addAmount').focus();
-});
+    document.getElementById('addCode').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') document.getElementById('addAmount').focus();
+    });
+}
+
+// 页面最后只调用 initAppWithLock()，不要直接调用 loadState()！
+initAppWithLock();
 </script>
 
 <!-- ===== 检查更新 ===== -->
@@ -2253,7 +3054,7 @@ document.getElementById('addCode').addEventListener('keydown', function(e) {
     <button class="upd-x" onclick="document.getElementById('updBanner').classList.remove('show')">✕</button>
 </div>
 <script>
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const RELEASES_URL = 'https://github.com/876607123-lab/finance-freedom/releases';
 const RELEASE_API = 'https://api.github.com/repos/876607123-lab/finance-freedom/releases/latest';
 (function(){ var el=document.getElementById('appVersion'); if(el) el.textContent='v'+APP_VERSION; })();
