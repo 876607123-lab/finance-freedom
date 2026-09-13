@@ -1,6 +1,6 @@
 {
   "name": "finance-freedom",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "我的财务自由 - 单文件 HTML App 打包为 Android APK",
   "private": true,
   "scripts": {
