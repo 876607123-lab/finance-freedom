@@ -2344,10 +2344,25 @@ function clearAll() {
     showToast('已清空');
 }
 
-// ====== 导出数据（浏览器下载，文件进系统 Download 目录，卸载 App 不丢失） ======
-function exportJsonFile(data, filename = 'finance-backup.json') {
-    const jsonStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
+// ====== 通用保存：浏览器走 a 标签下载；Capacitor 原生走 MediaStore/Filesystem ======
+function isNativeApp() {
+    return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+}
+// Blob 转 Base64（原生保存用）
+function blobToBase64(blob) {
+    return new Promise(function(resolve, reject) {
+        const reader = new FileReader();
+        reader.onloadend = function() {
+            const res = String(reader.result || '');
+            const idx = res.indexOf('base64,');
+            resolve(idx >= 0 ? res.slice(idx + 7) : res);
+        };
+        reader.onerror = function() { reject(new Error('文件读取失败')); };
+        reader.readAsDataURL(blob);
+    });
+}
+// 浏览器环境：a 标签下载
+function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -2357,9 +2372,52 @@ function exportJsonFile(data, filename = 'finance-backup.json') {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
+// 原生安卓环境：优先 MediaSave 插件（进系统 Download/图库，自动媒体收录），降级 @capacitor/filesystem 写 Documents
+async function saveFileNative(blob, filename, mime, kind) {
+    const base64 = await blobToBase64(blob);
+    const plugins = window.Capacitor && window.Capacitor.Plugins;
+    if (plugins && plugins.MediaSave) {
+        await plugins.MediaSave.saveFile({ base64: base64, filename: filename, mime: mime, kind: kind });
+        return 'mediastore';
+    }
+    if (plugins && plugins.Filesystem) {
+        try { await plugins.Filesystem.requestPermissions(); } catch (e) { /* Android 10+ 无需权限 */ }
+        await plugins.Filesystem.writeFile({ path: '财务自由/' + filename, data: base64, directory: 'DOCUMENTS', recursive: true });
+        return 'documents';
+    }
+    throw new Error('原生保存组件不可用');
+}
+// 统一保存入口，全部 try/catch，成功/失败均有提示
+async function saveFile(blob, filename, mime, kind) {
+    if (isNativeApp()) {
+        try {
+            const where = await saveFileNative(blob, filename, mime, kind);
+            if (kind === 'image') {
+                showToast(where === 'mediastore' ? '图片已保存到系统图库' : '图片已保存到 Documents/财务自由 目录');
+            } else {
+                showToast(where === 'mediastore' ? '文件已保存到系统下载目录（Download）' : '文件已保存到 Documents/财务自由 目录');
+            }
+        } catch (e) {
+            console.warn('saveFile error', e);
+            showToast('保存失败：' + (e && e.message ? e.message : '请重试'), true);
+        }
+    } else {
+        try {
+            downloadBlob(blob, filename);
+            showToast(kind === 'image' ? '已开始下载，请在系统下载目录查看' : '文件已导出，请在系统下载目录查看');
+        } catch (e) {
+            showToast('保存失败，请重试', true);
+        }
+    }
+}
+
+// ====== 导出数据（浏览器下载 / 原生保存到系统 Download，卸载 App 不丢失） ======
+function exportJsonFile(data, filename = 'finance-backup.json') {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    saveFile(blob, filename, 'application/json', 'file');
+}
 function exportData() {
     exportJsonFile(state, `财务自由备份_${new Date().toISOString().slice(0,10)}.json`);
-    showToast('已导出备份文件，请在系统下载目录查看');
 }
 
 // ====== 导入数据 ======
@@ -2829,8 +2887,7 @@ async function exportSnapshot(kind) {
                     const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
                     const pw = 150, ph = canvas.height * pw / canvas.width;
                     pdf.addImage(dataUrl, 'PNG', (210 - pw) / 2, 30, pw, Math.min(ph, 230));
-                    pdf.save(fname + '.pdf');
-                    showToast('PDF 已生成，请在下载目录查看');
+                    saveFile(pdf.output('blob'), fname + '.pdf', 'application/pdf', 'file');
                 } catch (e) { showToast('PDF 生成失败', true); }
             } else {
                 document.getElementById('snapImg').src = dataUrl;
@@ -2840,25 +2897,23 @@ async function exportSnapshot(kind) {
     }, 80);
 }
 function closeSnapModal() { document.getElementById('snapModal').classList.remove('active'); }
-// 图片下载：canvas 直接转 Blob，下载到系统 Download 目录，文件管理器可找到
+// 图片下载：canvas 转 Blob，浏览器走 a 标签下载 / 原生保存到系统图库（自动媒体收录）
 function downloadImage(canvasDom, fileName = 'chart.png') {
     canvasDom.toBlob(function(blob) {
         if (!blob) { showToast('下载失败，请长按图片保存', true); return; }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast('已开始下载，请在系统下载目录查看');
+        saveFile(blob, fileName, 'image/png', 'image');
     }, 'image/png');
 }
 function downloadSnap() {
     const fname = '财务自由快照_' + new Date().toISOString().slice(0, 10) + '.png';
     if (lastSnapCanvas) { downloadImage(lastSnapCanvas, fname); return; }
     if (!lastSnapDataUrl) { closeSnapModal(); return; }
+    if (isNativeApp()) {
+        fetch(lastSnapDataUrl).then(function(r) { return r.blob(); })
+            .then(function(b) { saveFile(b, fname, 'image/png', 'image'); })
+            .catch(function() { showToast('下载失败，请长按图片保存', true); });
+        return;
+    }
     try {
         const a = document.createElement('a');
         a.href = lastSnapDataUrl;
