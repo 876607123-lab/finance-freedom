@@ -1,0 +1,11 @@
+{
+  "name": "media-save",
+  "version": "1.0.0",
+  "description": "Local Capacitor plugin: save files to system Downloads / gallery with media scan",
+  "license": "MIT",
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  }
+}
