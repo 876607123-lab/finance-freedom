@@ -6,6 +6,15 @@ const config: CapacitorConfig = {
   webDir: 'www',
   android: {
     allowMixedContent: false
+  },
+  server: {
+    androidScheme: 'https'
+  },
+  plugins: {
+    Filesystem: {
+      androidReadPermission: true,
+      androidWritePermission: true
+    }
   }
 };
 
