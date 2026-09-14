@@ -541,6 +541,28 @@ canvas.chart{width:100%;display:block;touch-action:none}
     <div class="hint">A股行情来自腾讯公开行情接口，盘中约每 60 秒自动刷新，闭市时显示最近收盘价；支持沪深京股票（输入 6 位代码自动识别市场）。估值仅供参考，不构成投资建议。</div>
 </div>
 
+<!-- ===== 每日净值快照 ===== -->
+<div class="card" style="margin-top:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="chart-note">每日净值快照 · 刷新行情后自动记录 · 按住滑动查看明细</span>
+        <div class="seg">
+            <button id="dnModeCurve" class="on" onclick="setDnChartMode('curve')">净值曲线</button>
+            <button id="dnModeK" onclick="setDnChartMode('k')">简易K线</button>
+        </div>
+    </div>
+    <div class="yr-grid" style="margin-top:12px">
+        <div class="yr-stat"><div class="yr-label">最新净值</div><div class="yr-val num" id="dnNetValue" style="color:var(--accent)">--</div></div>
+        <div class="yr-stat"><div class="yr-label">今日盈亏</div><div class="yr-val num" id="dnDailyProfit" style="color:var(--muted)">--</div></div>
+        <div class="yr-stat"><div class="yr-label">今日 开/高/低</div><div class="yr-val num" id="dnOhl" style="color:var(--muted);font-size:12.5px">--</div></div>
+    </div>
+    <canvas class="chart" id="dnChart" style="height:190px;margin-top:10px"></canvas>
+    <button class="btn btn-ghost" id="dnListToggle" style="width:100%;margin:10px 0 0;padding:11px;font-size:12.5px" onclick="toggleDnList()">▾ 每日快照记录（0 条）</button>
+    <div id="dnListPanel" style="display:none">
+        <div id="dnList" style="margin-top:6px"></div>
+        <div class="hint" style="margin-top:6px">🔒 历史记录跨天自动锁定，默认不可编辑；🟢 当日记录随刷新自动覆盖，第一次刷新记为当日开盘资产。「估值写入本金」记为资金转入，总资产变化但不影响净值与投资盈亏。</div>
+    </div>
+</div>
+
 <!-- ===== 云同步 ===== -->
 <!-- ===== 年度分红管理 ===== -->
 <div class="sec"><span class="sec-idx">08</span><span class="sec-title">年度分红管理</span><span class="sec-en">Dividend</span></div>
@@ -790,6 +812,8 @@ let state = {
     chartScale: 'linear',
     funds: [],
     monthly: [],
+    dailyNetValue: [],
+    pendingTransfer: null,
     sync: { token: '', gistId: '', auto: false }
 };
 
@@ -823,6 +847,7 @@ function loadState() {
     if (!state.createdAt) state.createdAt = Date.now();
     if (typeof state.cash !== 'number') state.cash = 0;
     if (!Array.isArray(state.unlockedBadges)) state.unlockedBadges = [];
+    if (!Array.isArray(state.dailyNetValue)) state.dailyNetValue = [];
     dedupeMonthly();
     if (typeof state.peakTotal !== 'number') state.peakTotal = 0;
     if (!state.chartScale) state.chartScale = 'linear';
@@ -1846,6 +1871,15 @@ async function refreshHoldings(silent) {
     const bad = state.holdings.filter(h => !h.ok).length;
     setFundStatus(bad ? `${state.holdings.length - bad} 只成功，${bad} 只失败（请检查代码，股票须为沪深京 A 股）`
                       : '行情已更新 ' + new Date().toLocaleTimeString('zh-CN'));
+    // ====== 当日资产快照：行情更新完成后自动生成 ======
+    if (bad > 0) {
+        // 部分行情获取失败：手动刷新弹窗确认是否继续；静默自动刷新跳过当次快照
+        if (silent !== true && confirm(`有 ${bad} 只标的行情获取失败，快照将沿用其旧估值。\n是否继续保存今日资产快照？`)) {
+            recordDailySnapshot();
+        }
+    } else {
+        recordDailySnapshot();
+    }
 }
 
 function holdingValue(h) {
@@ -1972,15 +2006,18 @@ function applyHoldingsToPv() {
     if (!state.holdings.length) { showToast('请先添加持仓', true); return; }
     const total = Math.round(holdingsTotal());
     if (total <= 0) { showToast('暂无行情数据，请先刷新', true); return; }
+    const oldPv = parseFloat(document.getElementById('pv').value) || 0;
     document.getElementById('pv').value = total;
+    // 差额标记为资金转入：总资产变化但净值不变，不计入投资盈亏
+    markCapitalTransfer(total - oldPv);
     const est = estimateRate();
     if (est !== null) {
         document.getElementById('rate').value = est.toFixed(1);
         updateAll();
-        showToast(`估值 ¥${fmt.format(total)} 已写入 · 按成本测算年化 ${est.toFixed(1)}%`);
+        showToast(`估值 ¥${fmt.format(total)} 已写入 · 按成本测算年化 ${est.toFixed(1)}% · 差额记为资金转入`);
     } else {
         updateAll();
-        showToast(`已将实时估值 ¥${fmt.format(total)} 写入当前本金`);
+        showToast(`已将实时估值 ¥${fmt.format(total)} 写入当前本金 · 差额记为资金转入`);
     }
 }
 
@@ -2333,6 +2370,8 @@ function clearAll() {
               chartScale: 'linear',
               holdings: [],
               monthly: [],
+              dailyNetValue: [],
+              pendingTransfer: null,
               sync: { token:'', gistId:'', auto:false } };
     document.getElementById('pv').value = state.pv;
     document.getElementById('pmt').value = state.pmt;
@@ -2452,6 +2491,7 @@ function applyImportedState(parsed) {
     if (!state.createdAt) state.createdAt = Date.now();
     if (typeof state.cash !== 'number') state.cash = 0;
     if (!Array.isArray(state.unlockedBadges)) state.unlockedBadges = [];
+    if (!Array.isArray(state.dailyNetValue)) state.dailyNetValue = [];
     dedupeMonthly();
     if (typeof state.peakTotal !== 'number') state.peakTotal = 0;
     if (!state.chartScale) state.chartScale = 'linear';
@@ -2783,6 +2823,309 @@ function drawMonthlyChart() {
     canvas.addEventListener('pointerleave', end);
 })();
 
+// ====== 每日净值快照 =====
+// state.dailyNetValue 单条结构：{ date, totalAsset, openAsset, highAsset, lowAsset, cash, holdingMarketValue,
+//   dailyProfit, dailyRate, netValue, transferIn, isLocked, refreshCount, lastRefreshTs, modifyLog:[{ts,action,detail}] }
+let dnChartMode = 'curve';
+let dnScrubIdx = null, dnChartGeom = null;
+
+function todayKey() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function transferNote(amount) {
+    return `估值写入本金 ¥${fmt.format(Math.round(Math.abs(amount)))}（记为资金${amount >= 0 ? '转入' : '转出'}，不计入投资盈亏）`;
+}
+
+// 基金净值法逐日重算：转入不影响净值；dailyProfit 剔除当日转入
+function recomputeDaily() {
+    const recs = (state.dailyNetValue || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+    let prevAsset = null, prevNet = 1;
+    recs.forEach(r => {
+        const tIn = r.transferIn || 0;
+        if (prevAsset == null || prevAsset <= 0) {
+            r.dailyProfit = 0; r.dailyRate = 0; r.netValue = 1;
+        } else {
+            r.dailyProfit = Math.round(r.totalAsset - prevAsset - tIn);
+            r.dailyRate = (r.totalAsset - tIn) / prevAsset - 1;
+            r.netValue = prevNet * ((r.totalAsset - tIn) / prevAsset);
+        }
+        prevAsset = r.totalAsset; prevNet = r.netValue;
+    });
+    state.dailyNetValue = recs;
+}
+
+// 刷新行情完成后调用：生成 / 覆盖当日快照；跨天自动锁定历史
+function recordDailySnapshot() {
+    if (!Array.isArray(state.dailyNetValue)) state.dailyNetValue = [];
+    const date = todayKey();
+    const now = Date.now();
+    const holdingMV = Math.round(holdingsTotal());
+    const cash = Math.round(Math.max(0, state.cash || 0));
+    const totalAsset = holdingMV + cash;
+    if (totalAsset <= 0) return;
+    // 跨天自动锁定历史记录，默认不可编辑
+    state.dailyNetValue.forEach(r => {
+        if (r.date < date && !r.isLocked) {
+            r.isLocked = true;
+            (r.modifyLog = r.modifyLog || []).push({ ts: now, action: 'lock', detail: '跨天自动锁定，历史记录不可编辑' });
+        }
+    });
+    let rec = state.dailyNetValue.find(r => r.date === date);
+    if (!rec) {
+        rec = {
+            date, totalAsset,
+            openAsset: totalAsset,   // 当日第一次刷新记为开盘资产
+            highAsset: totalAsset, lowAsset: totalAsset,
+            cash, holdingMarketValue: holdingMV,
+            dailyProfit: 0, dailyRate: 0, netValue: 1, transferIn: 0,
+            isLocked: false, refreshCount: 1, lastRefreshTs: now,
+            modifyLog: [{ ts: now, action: 'create', detail: '当日第一次刷新，记为开盘资产' }]
+        };
+        // 应用「估值写入本金」待入账的资金转入标记
+        if (state.pendingTransfer && state.pendingTransfer.date === date && state.pendingTransfer.amount) {
+            rec.transferIn = state.pendingTransfer.amount;
+            rec.modifyLog.push({ ts: now, action: 'transfer', detail: transferNote(state.pendingTransfer.amount) });
+        }
+        state.pendingTransfer = null;
+        state.dailyNetValue.push(rec);
+    } else {
+        // 当日多次刷新：覆盖收盘，自动更新当日最高 / 最低
+        rec.totalAsset = totalAsset;
+        rec.cash = cash;
+        rec.holdingMarketValue = holdingMV;
+        rec.highAsset = Math.max(rec.highAsset, totalAsset);
+        rec.lowAsset = Math.min(rec.lowAsset, totalAsset);
+        rec.isLocked = false;
+        rec.refreshCount = (rec.refreshCount || 0) + 1;
+        rec.lastRefreshTs = now;
+    }
+    recomputeDaily();
+    saveState();
+    renderDailyNet();
+    drawDailyNetChart();
+}
+
+// 「估值写入本金」差额标记为资金转入（当日记录已存在则直接入账，否则挂起到下次快照）
+function markCapitalTransfer(amount) {
+    if (!amount) return;
+    if (!Array.isArray(state.dailyNetValue)) state.dailyNetValue = [];
+    const date = todayKey();
+    const rec = state.dailyNetValue.find(r => r.date === date);
+    if (rec && !rec.isLocked) {
+        rec.transferIn = (rec.transferIn || 0) + amount;
+        (rec.modifyLog = rec.modifyLog || []).push({ ts: Date.now(), action: 'transfer', detail: transferNote(amount) });
+        recomputeDaily();
+        saveState();
+        renderDailyNet();
+        drawDailyNetChart();
+    } else {
+        const prev = state.pendingTransfer && state.pendingTransfer.date === date ? state.pendingTransfer.amount : 0;
+        state.pendingTransfer = { date, amount: prev + amount };
+        saveState();
+    }
+}
+
+function setDnChartMode(m) {
+    dnChartMode = m;
+    document.getElementById('dnModeCurve').classList.toggle('on', m === 'curve');
+    document.getElementById('dnModeK').classList.toggle('on', m === 'k');
+    drawDailyNetChart();
+}
+
+function toggleDnList() {
+    const p = document.getElementById('dnListPanel');
+    p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function renderDailyNet() {
+    const recs = (state.dailyNetValue || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+    const todayRec = recs.find(r => r.date === todayKey());
+    const last = recs[recs.length - 1];
+    document.getElementById('dnNetValue').textContent = last ? last.netValue.toFixed(4) : '--';
+    const dpEl = document.getElementById('dnDailyProfit');
+    if (todayRec && recs.length > 1) {
+        const p = todayRec.dailyProfit, rPct = todayRec.dailyRate * 100;
+        dpEl.textContent = (p >= 0 ? '+' : '') + fmt.format(p) + '（' + (rPct >= 0 ? '+' : '') + rPct.toFixed(2) + '%）';
+        dpEl.style.color = p >= 0 ? 'var(--green)' : 'var(--red)';
+    } else {
+        dpEl.textContent = '--';
+        dpEl.style.color = 'var(--muted)';
+    }
+    document.getElementById('dnOhl').textContent = todayRec
+        ? fmt.format(todayRec.openAsset) + ' / ' + fmt.format(todayRec.highAsset) + ' / ' + fmt.format(todayRec.lowAsset)
+        : '--';
+    document.getElementById('dnListToggle').textContent = '▾ 每日快照记录（' + recs.length + ' 条）';
+    const list = document.getElementById('dnList');
+    if (!recs.length) {
+        list.innerHTML = '<div class="empty">点「刷新行情」后自动生成当日资产快照</div>';
+        return;
+    }
+    // 倒序渲染，最新日期在顶部；历史锁定不可编辑
+    list.innerHTML = recs.slice().reverse().map(r => {
+        const rPct = r.dailyRate * 100;
+        const rateStr = (rPct >= 0 ? '+' : '') + rPct.toFixed(2) + '%';
+        const lock = r.isLocked ? '🔒' : '🟢';
+        const transfer = r.transferIn ? ` · <span style="color:var(--amber)">资金转入 ¥${fmt.format(Math.round(r.transferIn))}</span>` : '';
+        return `<div class="log-row">
+            <div>
+                <div class="fund-name">${lock}&nbsp;${r.date}${transfer}</div>
+                <div class="fund-code">开 ${fmt.format(r.openAsset)} · 高 ${fmt.format(r.highAsset)} · 低 ${fmt.format(r.lowAsset)} · 净值 ${r.netValue.toFixed(4)}</div>
+            </div>
+            <div style="text-align:right">
+                <div class="num" style="font-size:13.5px;font-weight:600">¥${fmt.format(r.totalAsset)}</div>
+                <div style="font-size:11px;color:${rPct >= 0 ? 'var(--green)' : 'var(--red)'}">${rateStr}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// 复用月度图表的 Canvas 封装：净值曲线 / 简易 K 线双模式
+function drawDailyNetChart() {
+    const canvas = document.getElementById('dnChart');
+    if (!canvas) return;
+    const { ctx, w, h } = setupCanvas(canvas, 190);
+    ctx.clearRect(0, 0, w, h);
+    const recs = (state.dailyNetValue || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+    if (!recs.length) {
+        ctx.fillStyle = C.text; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('点「刷新行情」后，这里会显示每日净值曲线', w / 2, h / 2);
+        dnChartGeom = null;
+        return;
+    }
+    const isK = dnChartMode === 'k';
+    const padL = 46, padR = 12, padT = 16, padB = 26;
+    const cw = w - padL - padR, ch = h - padT - padB;
+    const n = recs.length;
+    let vMin, vMax;
+    if (isK) {
+        vMin = Math.min(...recs.map(r => r.lowAsset));
+        vMax = Math.max(...recs.map(r => r.highAsset));
+    } else {
+        vMin = Math.min(...recs.map(r => r.netValue), 1);
+        vMax = Math.max(...recs.map(r => r.netValue), 1);
+    }
+    if (vMax - vMin < 1e-6) vMax = vMin + (isK ? 1 : 0.01);
+    const span = vMax - vMin;
+    vMax += span * 0.12; vMin -= span * 0.12;
+    const xOf = i => padL + (n === 1 ? cw / 2 : (i / (n - 1)) * cw);
+    const yOf = v => padT + ch - ((v - vMin) / (vMax - vMin)) * ch;
+    const fmtV = v => isK
+        ? (Math.abs(v) >= 10000 ? (v / 10000).toFixed(1) + '万' : String(Math.round(v)))
+        : v.toFixed(3);
+
+    // 网格 + Y 轴刻度
+    ctx.font = '10px sans-serif'; ctx.lineWidth = 1;
+    for (let i = 0; i <= 3; i++) {
+        const v = vMax - (vMax - vMin) * i / 3;
+        const y = yOf(v);
+        ctx.strokeStyle = C.grid;
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+        ctx.fillStyle = C.text; ctx.textAlign = 'right';
+        ctx.fillText(fmtV(v), padL - 6, y + 3);
+    }
+    // X 轴日期标签抽稀（最多约 6 个）
+    const step = Math.max(1, Math.ceil(n / 6));
+    ctx.fillStyle = C.text; ctx.textAlign = 'center';
+    for (let i = 0; i < n; i += step) ctx.fillText(recs[i].date.slice(5), xOf(i), h - 8);
+    if ((n - 1) % step !== 0) ctx.fillText(recs[n - 1].date.slice(5), xOf(n - 1), h - 8);
+
+    if (!isK) {
+        // 初始净值 1.0 参考线
+        const ty = yOf(1);
+        if (ty > padT && ty < padT + ch) {
+            ctx.setLineDash([5, 4]);
+            ctx.strokeStyle = C.amber;
+            ctx.beginPath(); ctx.moveTo(padL, ty); ctx.lineTo(w - padR, ty); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = C.amber; ctx.textAlign = 'right';
+            ctx.fillText('初始净值 1.000', w - padR - 2, ty - 4);
+        }
+        // 净值折线 + 数据点
+        ctx.strokeStyle = C.blue; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+        ctx.beginPath();
+        recs.forEach((r, i) => { const x = xOf(i), y = yOf(r.netValue); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+        ctx.stroke();
+        recs.forEach((r, i) => {
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(xOf(i), yOf(r.netValue), 3, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = C.blue; ctx.lineWidth = 1.5; ctx.stroke();
+        });
+    } else {
+        // 简易 K 线：影线（高-低）+ 实体（开-收），配色与页面盈亏一致（绿涨红跌）
+        const bw = Math.max(3, Math.min(14, (cw / n) * 0.5));
+        recs.forEach((r, i) => {
+            const x = xOf(i);
+            const up = r.totalAsset >= r.openAsset;
+            const col = up ? C.green : '#f87171';
+            ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(x, yOf(r.highAsset)); ctx.lineTo(x, yOf(r.lowAsset)); ctx.stroke();
+            const y1 = yOf(Math.max(r.openAsset, r.totalAsset));
+            const y2 = yOf(Math.min(r.openAsset, r.totalAsset));
+            ctx.fillStyle = up ? 'rgba(52,211,153,0.85)' : 'rgba(248,113,113,0.85)';
+            ctx.fillRect(x - bw / 2, y1, bw, Math.max(2, y2 - y1));
+        });
+    }
+    dnChartGeom = { n };
+
+    // 触摸选中：竖线 + tooltip（总资产 / 净值 / 开高低 / 盈亏 / 转入）
+    if (dnScrubIdx != null && recs[dnScrubIdx]) {
+        const i = dnScrubIdx, r = recs[i];
+        const x = xOf(i);
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + ch); ctx.stroke();
+        ctx.setLineDash([]);
+        const rPct = r.dailyRate * 100;
+        const lines = [
+            r.date + (r.isLocked ? ' 🔒' : ''),
+            '总资产 ¥' + fmt.format(r.totalAsset) + ' · 净值 ' + r.netValue.toFixed(4),
+            '开 ' + fmt.format(r.openAsset) + ' · 高 ' + fmt.format(r.highAsset) + ' · 低 ' + fmt.format(r.lowAsset),
+            '盈亏 ' + (r.dailyProfit >= 0 ? '+' : '') + fmt.format(r.dailyProfit) + '（' + (rPct >= 0 ? '+' : '') + rPct.toFixed(2) + '%）' + (r.transferIn ? ' · 转入 ¥' + fmt.format(Math.round(r.transferIn)) : '')
+        ];
+        const bw2 = 245, bh2 = 68;
+        let bx = x + 12;
+        if (bx + bw2 > w - 4) bx = x - bw2 - 12;
+        if (bx < 4) bx = 4;
+        const by = padT + 4;
+        ctx.fillStyle = 'rgba(16,26,46,0.96)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(bx, by, bw2, bh2, 10); else ctx.rect(bx, by, bw2, bh2);
+        ctx.fill(); ctx.stroke();
+        ctx.textAlign = 'left';
+        lines.forEach((t, li) => {
+            ctx.fillStyle = li === 0 ? '#5b8cff' : (li === 1 ? '#fff' : '#8a94a8');
+            ctx.font = li === 0 ? 'bold 11px sans-serif' : '11px sans-serif';
+            ctx.fillText(t, bx + 10, by + 16 + li * 15);
+        });
+    }
+}
+
+// 触摸滑动查看单日明细
+(function initDnScrub() {
+    const canvas = document.getElementById('dnChart');
+    if (!canvas) return;
+    let dragging = false;
+    const idxFromEvent = e => {
+        if (!dnChartGeom || !dnChartGeom.n) return null;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const padL = 46, padR = 12;
+        const cw = rect.width - padL - padR;
+        const n = dnChartGeom.n;
+        const t = n === 1 ? 0.5 : (x - padL) / cw;
+        return Math.max(0, Math.min(n - 1, Math.round(t * (n - 1))));
+    };
+    canvas.addEventListener('pointerdown', e => { dragging = true; dnScrubIdx = idxFromEvent(e); drawDailyNetChart(); });
+    canvas.addEventListener('pointermove', e => { if (!dragging) return; dnScrubIdx = idxFromEvent(e); drawDailyNetChart(); });
+    const end = () => { if (!dragging) return; dragging = false; dnScrubIdx = null; drawDailyNetChart(); };
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+    canvas.addEventListener('pointerleave', end);
+})();
+
 // ====== 年度复盘 ======
 let yrSelected = null;
 function renderYearReview() {
@@ -2986,6 +3329,8 @@ function lockResetAll() {
               chartScale: 'linear',
               holdings: [],
               monthly: [],
+              dailyNetValue: [],
+              pendingTransfer: null,
               sync: { token:'', gistId:'', auto:false } };
     appUnlocked = false;
     userPassword = null;
@@ -3068,11 +3413,13 @@ function afterAppLoad() {
     setAhType('stock');
     renderHoldings();
     renderMonthly();
+    renderDailyNet();
+    drawDailyNetChart();
     refreshLockBtn();
     if (state.holdings && state.holdings.length) setTimeout(() => refreshHoldings(true), 400);
     setInterval(() => { migrateHoldings(); if (state.holdings.length) refreshHoldings(true); }, 60000);
 
-    window.addEventListener('resize', () => { drawProjectionChart(); drawRateChart(); drawMonthlyChart(); });
+    window.addEventListener('resize', () => { drawProjectionChart(); drawRateChart(); drawMonthlyChart(); drawDailyNetChart(); });
 
     document.getElementById('addModal').addEventListener('click', function(e) {
         if (e.target === this) closeAddModal();
@@ -3131,7 +3478,7 @@ initAppWithLock();
     <button class="upd-x" onclick="document.getElementById('updBanner').classList.remove('show')">✕</button>
 </div>
 <script>
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.1.2';
 const RELEASES_URL = 'https://github.com/876607123-lab/finance-freedom/releases';
 const RELEASE_API = 'https://api.github.com/repos/876607123-lab/finance-freedom/releases/latest';
 var latestApkUrl = '';
